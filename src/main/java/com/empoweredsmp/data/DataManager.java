@@ -1,7 +1,9 @@
 package com.empoweredsmp.data;
 
 import com.empoweredsmp.model.Ability;
+import com.empoweredsmp.model.BowEnchantChoice;
 import com.empoweredsmp.model.PlayerData;
+import org.bukkit.Material;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -48,6 +50,16 @@ public class DataManager {
             data.setAbility(Ability.fromString(abilityStr));
             data.setLevel(y.getInt("level", 0));
             data.setDeathCounter(y.getInt("death-counter", 0));
+            data.setBowEnchantChoice(BowEnchantChoice.fromString(y.getString("bow-enchant-choice", null)));
+            String tool1Str = y.getString("prosperity-tool-1", null);
+            String tool2Str = y.getString("prosperity-tool-2", null);
+            if (tool1Str != null && tool2Str != null) {
+                try {
+                    data.setProsperityTools(Material.valueOf(tool1Str), Material.valueOf(tool2Str));
+                } catch (IllegalArgumentException ignored) {
+                    // stored material name no longer valid; leave unset
+                }
+            }
         }
         return data;
     }
@@ -59,6 +71,11 @@ public class DataManager {
         y.set("ability", data.getAbility() == null ? null : data.getAbility().name());
         y.set("level", data.getLevel());
         y.set("death-counter", data.getDeathCounter());
+        y.set("bow-enchant-choice", data.getBowEnchantChoice().name());
+        if (data.hasChosenProsperityTools()) {
+            y.set("prosperity-tool-1", data.getProsperityTool1().name());
+            y.set("prosperity-tool-2", data.getProsperityTool2().name());
+        }
         try {
             y.save(fileFor(uuid));
         } catch (IOException e) {
