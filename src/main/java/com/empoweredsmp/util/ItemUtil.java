@@ -41,4 +41,30 @@ public class ItemUtil {
         if (item == null || !item.hasItemMeta()) return false;
         return item.getItemMeta().getPersistentDataContainer().has(Keys.LEVEL_UPGRADER, PersistentDataType.BYTE);
     }
+
+    /**
+     * Ranger Level 2's "Custom Crossbow with Quick Charge X". Vanilla enchants cap
+     * Quick Charge at level 5, so this is carried as flavor plus Unbreaking, and the
+     * real "beyond vanilla" effect — instant reload, no charge delay at all — is
+     * implemented in RangerCrossbowListener rather than through an enchant level.
+     */
+    public static ItemStack buildRangerCrossbow() {
+        ItemStack item = new ItemStack(Material.CROSSBOW);
+        ItemMeta meta = item.getItemMeta();
+        meta.displayName(Component.text("Quick Draw Crossbow", NamedTextColor.YELLOW)
+                .decoration(TextDecoration.ITALIC, false));
+        meta.lore(java.util.List.of(
+                Component.text("Loads instantly — no charge time.", NamedTextColor.GRAY)
+                        .decoration(TextDecoration.ITALIC, false)
+        ));
+        meta.addEnchant(org.bukkit.enchantments.Enchantment.QUICK_CHARGE, 5, true);
+        meta.getPersistentDataContainer().set(Keys.RANGER_CROSSBOW, PersistentDataType.BYTE, (byte) 1);
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    public static boolean isRangerCrossbow(ItemStack item) {
+        if (item == null || !item.hasItemMeta()) return false;
+        return item.getItemMeta().getPersistentDataContainer().has(Keys.RANGER_CROSSBOW, PersistentDataType.BYTE);
+    }
 }
