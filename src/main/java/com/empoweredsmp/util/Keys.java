@@ -7,9 +7,11 @@ public class Keys {
 
     public static NamespacedKey LEVEL_FRAGMENT;
     public static NamespacedKey LEVEL_UPGRADER;
+    public static NamespacedKey RANGER_CROSSBOW;
 
     public static void init(Plugin plugin) {
         LEVEL_FRAGMENT = new NamespacedKey(plugin, "level_fragment");
         LEVEL_UPGRADER = new NamespacedKey(plugin, "level_upgrader");
+        RANGER_CROSSBOW = new NamespacedKey(plugin, "ranger_crossbow");
     }
 }
