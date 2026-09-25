@@ -2,6 +2,7 @@ package com.empoweredsmp.commands;
 
 import com.empoweredsmp.data.DataManager;
 import com.empoweredsmp.managers.AbilityManager;
+import com.empoweredsmp.managers.StarterKitManager;
 import com.empoweredsmp.model.PlayerData;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -15,10 +16,12 @@ public class EmpoweredAdminCommand implements CommandExecutor {
 
     private final AbilityManager abilities;
     private final DataManager data;
+    private final StarterKitManager starterKits;
 
-    public EmpoweredAdminCommand(AbilityManager abilities, DataManager data) {
+    public EmpoweredAdminCommand(AbilityManager abilities, DataManager data, StarterKitManager starterKits) {
         this.abilities = abilities;
         this.data = data;
+        this.starterKits = starterKits;
     }
 
     @Override
@@ -54,6 +57,9 @@ public class EmpoweredAdminCommand implements CommandExecutor {
                     int lvl = Integer.parseInt(args[2]);
                     d.setLevel(lvl);
                     data.save(target.getUniqueId());
+                    if (d.hasAbility()) {
+                        starterKits.grantLevelUpKit(target, d.getAbility(), d.getLevel());
+                    }
                     sender.sendMessage(Component.text("Set " + target.getName() + " to level " + d.getLevel(),
                             NamedTextColor.GREEN));
                 } catch (NumberFormatException e) {
