@@ -1,0 +1,40 @@
+name: EmpoweredSMP
+version: '1.0.0'
+main: com.empoweredsmp.EmpoweredSMP
+api-version: '26.2'
+author: YourName
+description: Empowered SMP - custom ability-class RPG plugin (Prosperity, Invisibility, Elemental, Vitality, Ranger, Mobility, Defense, Strength)
+
+commands:
+  class:
+    description: Assign a player's permanent ability class (admin only)
+    usage: /class <player> <ability>
+    permission: empoweredsmp.admin
+  ei:
+    description: Open your Prosperity extra inventory
+    usage: /ei
+  empowered:
+    description: Admin control command for Empowered SMP
+    usage: /empowered <setlevel|info|resetdeaths> ...
+    permission: empoweredsmp.admin
+    aliases: [esmp, eadmin]
+  unlocknether:
+    description: Permanently unlock the Nether for all players
+    usage: /unlocknether
+    permission: empoweredsmp.op
+  unlockend:
+    description: Permanently unlock the End for all players
+    usage: /unlockend
+    permission: empoweredsmp.op
+  unlockvillagers:
+    description: Permanently unlock villager trading for all players
+    usage: /unlockvillagers
+    permission: empoweredsmp.op
+
+permissions:
+  empoweredsmp.admin:
+    description: Can assign classes and manage player levels
+    default: op
+  empoweredsmp.op:
+    description: Can permanently unlock global world/villager gates
+    default: op
