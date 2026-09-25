@@ -70,6 +70,20 @@ public class StarterKitManager {
         }
     }
 
+    /**
+     * Granted the moment a player's level increases to newLevel (via the Level
+     * Upgrader), on top of whatever they already have. Currently only Ranger L2
+     * grants a new item; other abilities' level-ups are all passive stat changes
+     * handled continuously by EffectManager, so there's nothing to hand out.
+     */
+    public void grantLevelUpKit(Player p, Ability ability, int newLevel) {
+        if (ability == Ability.RANGER && newLevel == 2) {
+            p.getInventory().addItem(com.empoweredsmp.util.ItemUtil.buildRangerCrossbow());
+            p.sendMessage(Component.text("You've been given a Quick Draw Crossbow — "
+                    + "right-click to load it instantly, no charge time.", NamedTextColor.YELLOW));
+        }
+    }
+
     private ItemStack buildInvisPotion() {
         ItemStack potion = new ItemStack(POTION);
         PotionMeta meta = (PotionMeta) potion.getItemMeta();
