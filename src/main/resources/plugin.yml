@@ -13,6 +13,12 @@ commands:
   ei:
     description: Open your Prosperity extra inventory
     usage: /ei
+  bowchoice:
+    description: 'Ranger: choose Infinity or Mending on whatever bow you hold'
+    usage: /bowchoice <infinity|mending>
+  toolchoice:
+    description: 'Prosperity L2: permanently choose your 2 netherite tool types'
+    usage: /toolchoice <tool1> <tool2>
   empowered:
     description: Admin control command for Empowered SMP
     usage: /empowered <setlevel|info|resetdeaths> ...
