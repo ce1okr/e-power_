@@ -2,7 +2,9 @@ package com.empoweredsmp.managers;
 
 import com.empoweredsmp.data.DataManager;
 import com.empoweredsmp.model.Ability;
+import com.empoweredsmp.model.BowEnchantChoice;
 import com.empoweredsmp.model.PlayerData;
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
 
 import java.util.UUID;
@@ -55,10 +57,27 @@ public class AbilityManager {
     public boolean canUseNetheriteArmor(Player p) { return is(p, Ability.DEFENSE, 2); }
     public boolean canUseNetheriteSword(Player p) { return is(p, Ability.STRENGTH, 1); }
     public boolean canUseNetheriteSpear(Player p) { return is(p, Ability.MOBILITY, 1); }
-    /** Prosperity L2 may pick 2 tool types; Prosperity L3 may use all of them. Actual tool-type
-     *  choice bookkeeping is handled by ProsperityToolChoiceManager; this only gates "any at all". */
-    public boolean canUseAnyNetheriteTool(Player p) { return is(p, Ability.PROSPERITY, 2); }
-    public boolean canUseAllNetheriteTools(Player p) { return is(p, Ability.PROSPERITY, 3); }
+
+    /**
+     * Prosperity L3 may use any netherite tool. Prosperity L2 may only use the two
+     * tool types they locked in with /toolchoice (see PlayerData.setProsperityTools).
+     * Everyone else, no.
+     */
+    public boolean canUseNetheriteTool(Player p, Material toolType) {
+        PlayerData d = get(p);
+        if (d.getAbility() != Ability.PROSPERITY) return false;
+        if (d.getLevel() >= 3) return true;
+        if (d.getLevel() >= 2) {
+            return toolType.equals(d.getProsperityTool1()) || toolType.equals(d.getProsperityTool2());
+        }
+        return false;
+    }
+
+    /** Whether this player is eligible to run /toolchoice at all (Prosperity L2, not yet chosen). */
+    public boolean canChooseProsperityTools(Player p) {
+        PlayerData d = get(p);
+        return d.getAbility() == Ability.PROSPERITY && d.getLevel() == 2 && !d.hasChosenProsperityTools();
+    }
 
     // ---- Potions / effects exclusivity ----
     public boolean canUseFireResistancePotion(Player p) { return is(p, Ability.ELEMENTAL, 1); }
@@ -86,4 +105,22 @@ public class AbilityManager {
     public boolean isMobilityAtLeast(Player p, int lvl) { return is(p, Ability.MOBILITY, lvl); }
     public boolean isRangerAtLeast(Player p, int lvl) { return is(p, Ability.RANGER, lvl); }
     public boolean isProsperityAtLeast(Player p, int lvl) { return is(p, Ability.PROSPERITY, lvl); }
+
+    // ---- Ranger bow enchant choice (Level 1: Infinity OR Mending, chosen via /bowchoice) ----
+    public boolean canChooseBowEnchant(Player p) { return is(p, Ability.RANGER, 1); }
+
+    public BowEnchantChoice getBowEnchantChoice(Player p) {
+        return get(p).getBowEnchantChoice();
+    }
+
+    public void setBowEnchantChoice(Player p, BowEnchantChoice choice) {
+        get(p).setBowEnchantChoice(choice);
+        data.save(p.getUniqueId());
+    }
+
+    /** Persists whatever's currently in this player's PlayerData object (e.g. after a command
+     *  mutates it directly, like /toolchoice locking in tool types). */
+    public void save(Player p) {
+        data.save(p.getUniqueId());
+    }
 }
