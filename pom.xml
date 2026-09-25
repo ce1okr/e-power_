@@ -23,14 +23,16 @@
     </repositories>
 
     <dependencies>
-        <!-- Paper API for MC 26.2. If this exact range isn't resolvable yet on your
-             machine (Paper publishes new minor snapshots frequently), check
+        <!-- Paper API for MC 26.2. Maven doesn't support Gradle's "26.2.build.+" wildcard
+             syntax, so this uses Maven's own version-range syntax instead: "[26.2.build,)"
+             resolves to the newest published 26.2 build. If you'd rather pin an exact,
+             reproducible build, check
              https://repo.papermc.io/service/rest/repository/browse/maven-public/io/papermc/paper/paper-api/
-             and pin an exact version string instead of the '+' range. -->
+             and use a literal version string like 26.2.build.65-beta instead of the range. -->
         <dependency>
             <groupId>io.papermc.paper</groupId>
             <artifactId>paper-api</artifactId>
-            <version>26.2.build.+</version>
+            <version>[26.2.build,)</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>
