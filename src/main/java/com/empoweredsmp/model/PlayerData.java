@@ -1,5 +1,7 @@
 package com.empoweredsmp.model;
 
+import org.bukkit.Material;
+
 import java.util.UUID;
 
 /**
@@ -14,6 +16,13 @@ public class PlayerData {
     private Ability ability;
     private int level;
     private int deathCounter;
+
+    /** Ranger L1: which enchant to keep applied to whatever bow they hold. Defaults to MENDING. */
+    private BowEnchantChoice bowEnchantChoice = BowEnchantChoice.MENDING;
+
+    /** Prosperity L2: the two netherite tool types they picked, locked in once set via /toolchoice. */
+    private Material prosperityTool1;
+    private Material prosperityTool2;
 
     public PlayerData(UUID uuid) {
         this.uuid = uuid;
@@ -70,5 +79,33 @@ public class PlayerData {
     /** Equipping/consuming a Level Fragment resets the death counter. */
     public void resetDeathCounter() {
         this.deathCounter = 0;
+    }
+
+    public BowEnchantChoice getBowEnchantChoice() {
+        return bowEnchantChoice;
+    }
+
+    public void setBowEnchantChoice(BowEnchantChoice choice) {
+        this.bowEnchantChoice = choice == null ? BowEnchantChoice.MENDING : choice;
+    }
+
+    public Material getProsperityTool1() {
+        return prosperityTool1;
+    }
+
+    public Material getProsperityTool2() {
+        return prosperityTool2;
+    }
+
+    public boolean hasChosenProsperityTools() {
+        return prosperityTool1 != null && prosperityTool2 != null;
+    }
+
+    /** Locks in the two netherite tool types. Does nothing if already chosen. */
+    public boolean setProsperityTools(Material tool1, Material tool2) {
+        if (hasChosenProsperityTools()) return false;
+        this.prosperityTool1 = tool1;
+        this.prosperityTool2 = tool2;
+        return true;
     }
 }
