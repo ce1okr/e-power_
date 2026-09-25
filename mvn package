@@ -1,0 +1,68 @@
+
+The compiled jar will be at `target/EmpoweredSMP.jar`. Drop it into your server's `plugins/` folder.
+
+> I built this without network access, so I could not run `mvn package` myself to verify it
+> compiles byte-for-byte against the live 26.2 API. The `pom.xml` uses `paper-api:26.2.build.+`
+> (the floating "latest build" range); if that specific range isn't resolvable when you build,
+> check https://repo.papermc.io/service/rest/repository/browse/maven-public/io/papermc/paper/paper-api/
+> and pin an exact version string instead.
+
+## Commands & permissions
+
+| Command | Who | Purpose |
+|---|---|---|
+| `/class <player> <ability>` | `empoweredsmp.admin` (op by default) | Permanently assigns an ability + grants its Level 0 kit |
+| `/ei` | anyone (no-op unless Prosperity) | Opens the Prosperity extra inventory |
+| `/empowered info\|setlevel\|resetdeaths <player> [value]` (aliases: `/esmp`, `/eadmin`) | `empoweredsmp.admin` | View/adjust a player's level or death counter |
+| `/unlocknether` / `/unlockend` / `/unlockvillagers` | `empoweredsmp.op` | One-way, irreversible global gates |
+
+Abilities: `PROSPERITY, INVISIBILITY, ELEMENTAL, VITALITY, RANGER, MOBILITY, DEFENSE, STRENGTH`
+
+(Note: "Prosperity" here is one of the eight ability classes, unrelated to the plugin's own name —
+both just happen to share a similar theme.)
+
+## Design decisions worth knowing about
+
+Everything numeric (percentages, cooldowns, caps, heart totals) lives in **config.yml** so you
+can tune balance without recompiling. A few things needed interpretation since the spec didn't
+give exact numbers for every step — check config.yml's comments and adjust if my read differs
+from what you intended:
+
+- **Vitality hearts by level**: I used {0:11, 1:11, 2:13, 3:16}, anchored on the spec's explicit
+  "Heart Surge restores to 16 hearts at level 3." Levels 1-2 are my best-fit interpolation.
+- **Level Fragment / Level Upgrader materials**: plain vanilla items with custom names only (as
+  you asked) — Prismarine Shard and Nether Star respectively — tagged internally so they can't be
+  faked by a normal prismarine shard/nether star. Change `LEVEL_FRAGMENT_MATERIAL` /
+  `LEVEL_UPGRADER_MATERIAL` constants in `EmpoweredSMP.java` if you'd rather use different
+  base items.
+- **"Netherite Spear" / "Diamond Spear" (Mobility)**: vanilla Minecraft has no Spear item type.
+  I substituted a Trident tagged "Lunge Spear" with a custom right-click lunge ability (15s
+  cooldown) to approximate the Level 0 kit and the "Lunge 3" mechanic. If you have a separate
+  custom-items plugin/datapack that adds real spears, tell me and I'll wire the restrictions to
+  that item type instead of the Trident stand-in.
+- **Full Invis at Invisibility L3**: vanilla `InvisibilityEffect` already hides armor and held
+  items from other players' view of the entity model, so no extra packet work was needed for
+  that part. What isn't automatic is *forcing* it on below 4 hearts with a distinct cooldown from
+  the permanent L1 invisibility — that's handled via a temporary effect layered on top.
+- **Hero of the Village**: implemented as the real vanilla `HERO_OF_THE_VILLAGE` potion effect
+  (amplifier 4 = "level V", amplifier 9 = "level X"), which is the actual mechanic that discounts
+  villager trades in vanilla Minecraft — no custom price math needed.
+- **Enforcement model**: item/enchant/potion restrictions are enforced by cancelling the
+  interact/click/consume/pickup event when a player doesn't qualify. This catches items from
+  `/give`, other plugins, or trading, but a determined player could still briefly hold a
+  disallowed item in an unopened container; nothing engages until they try to use or move it.
+- **Data storage**: per-player YAML files under `plugins/EmpoweredSMP/playerdata/`, as
+  discussed — fine for a single server, would need a rewrite to MySQL for a BungeeCord/Velocity
+  network sharing player state across servers.
+
+## Things you'll likely want to extend
+
+- The custom crossbow with Quick Charge X (Ranger L2) and the "Infinity OR Mending, chosen each
+  time you hold a bow" (Ranger L1) aren't implemented yet — both need a small `PlayerItemHeldEvent`
+  /custom-crossbow-item listener that I can add next; I stopped short of guessing your preferred
+  UX for the "choose each time" toggle (a right-click menu? sneak+swap?).
+- Prosperity's "choose any 2 Netherite tool types" at L2 (vs. "all of them" at L3) currently only
+  gates *whether* any netherite tool is usable at L2, not which specific 2 — I'd want to know how
+  you want that chosen (a GUI, a command, automatically the first 2 equipped) before building it.
+
+Happy to keep building out either of those, or adjust any of the interpretation calls above.
