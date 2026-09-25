@@ -1,14 +1,19 @@
 package com.empoweredsmp.managers;
 
 import com.empoweredsmp.model.Ability;
+import com.empoweredsmp.model.BowEnchantChoice;
 import com.empoweredsmp.model.PlayerData;
 import com.empoweredsmp.util.Config;
 import org.bukkit.Bukkit;
+import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.attribute.AttributeModifier;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
@@ -96,6 +101,7 @@ public class EffectManager extends BukkitRunnable {
             }
             case RANGER -> {
                 if (level >= 2) give(p, PotionEffectType.SPEED, 0, dur);
+                if (level >= 1) syncBowEnchant(p, d.getBowEnchantChoice());
             }
             case PROSPERITY -> {
                 if (level >= 2) give(p, PotionEffectType.HERO_OF_THE_VILLAGE, 4, dur); // "Hero of the Village V"
@@ -131,5 +137,35 @@ public class EffectManager extends BukkitRunnable {
         if (amount > 0) {
             attr.addModifier(new AttributeModifier(kbResistKey, amount, AttributeModifier.Operation.ADD_NUMBER));
         }
+    }
+
+    /**
+     * Ranger L1: keeps whatever bow the player is holding (main or off hand) carrying
+     * exactly the enchant they've chosen via /bowchoice, removing the other one.
+     * Doesn't touch crossbows — Ranger L2's custom crossbow is handled separately.
+     */
+    private void syncBowEnchant(Player p, BowEnchantChoice choice) {
+        fixBowEnchant(p.getInventory().getItemInMainHand(), choice);
+        fixBowEnchant(p.getInventory().getItemInOffHand(), choice);
+    }
+
+    private void fixBowEnchant(ItemStack item, BowEnchantChoice choice) {
+        if (item == null || item.getType() != Material.BOW) return;
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return;
+
+        Enchantment want = choice == BowEnchantChoice.INFINITY ? Enchantment.INFINITY : Enchantment.MENDING;
+        Enchantment other = choice == BowEnchantChoice.INFINITY ? Enchantment.MENDING : Enchantment.INFINITY;
+
+        boolean changed = false;
+        if (!meta.hasEnchant(want)) {
+            meta.addEnchant(want, 1, true);
+            changed = true;
+        }
+        if (meta.hasEnchant(other)) {
+            meta.removeEnchant(other);
+            changed = true;
+        }
+        if (changed) item.setItemMeta(meta);
     }
 }
