@@ -76,18 +76,22 @@ public class EffectManager extends BukkitRunnable {
 
         switch (ability) {
             case INVISIBILITY -> {
-                give(p, PotionEffectType.NIGHT_VISION, 0, dur);
-                give(p, PotionEffectType.INVISIBILITY, 0, dur);
+                if (level >= 1) {
+                    give(p, PotionEffectType.NIGHT_VISION, 0, dur);
+                    give(p, PotionEffectType.INVISIBILITY, 0, dur);
+                }
                 if (level >= 2) give(p, PotionEffectType.SPEED, 0, dur);
             }
             case ELEMENTAL -> {
-                give(p, PotionEffectType.FIRE_RESISTANCE, 0, dur);
-                give(p, PotionEffectType.WATER_BREATHING, 0, dur);
-                give(p, PotionEffectType.HASTE, level >= 2 ? 1 : 0, dur);
+                if (level >= 1) {
+                    give(p, PotionEffectType.FIRE_RESISTANCE, 0, dur);
+                    give(p, PotionEffectType.WATER_BREATHING, 0, dur);
+                    give(p, PotionEffectType.HASTE, level >= 2 ? 1 : 0, dur);
+                }
                 if (level >= 3) give(p, PotionEffectType.DOLPHINS_GRACE, 0, dur);
             }
             case MOBILITY -> {
-                give(p, PotionEffectType.SPEED, level >= 2 ? 1 : 0, dur);
+                if (level >= 1) give(p, PotionEffectType.SPEED, level >= 2 ? 1 : 0, dur);
                 if (level >= 2) give(p, PotionEffectType.WEAVING, 0, dur);
             }
             case DEFENSE -> {
@@ -97,7 +101,7 @@ public class EffectManager extends BukkitRunnable {
                 give(p, PotionEffectType.REGENERATION, 0, dur);
             }
             case STRENGTH -> {
-                give(p, PotionEffectType.STRENGTH, level >= 2 ? 1 : 0, dur);
+                if (level >= 1) give(p, PotionEffectType.STRENGTH, level >= 2 ? 1 : 0, dur);
             }
             case RANGER -> {
                 if (level >= 2) give(p, PotionEffectType.SPEED, 0, dur);
