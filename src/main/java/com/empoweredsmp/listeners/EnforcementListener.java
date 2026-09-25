@@ -90,8 +90,7 @@ public class EnforcementListener implements Listener {
         // if (type == Material.MACE && !abilities.canUseNetheriteSpear(p)) return false;
 
         if (NETHERITE_TOOLS.contains(type)) {
-            boolean allowed = abilities.canUseAllNetheriteTools(p) || abilities.canUseAnyNetheriteTool(p);
-            if (!allowed) return false;
+            if (!abilities.canUseNetheriteTool(p, type)) return false;
         }
 
         if (item.hasItemMeta()) {
@@ -176,7 +175,7 @@ public class EnforcementListener implements Listener {
     public void onPotionApplied(EntityPotionEffectEvent event) {
         if (!(event.getEntity() instanceof Player p)) return;
         if (event.getCause() != Cause.POTION_DRINK && event.getCause() != Cause.POTION_SPLASH
-                && event.getCause() != Cause.POTION_LINGERING) return;
+                && event.getCause() != Cause.AREA_EFFECT_CLOUD) return;
         if (event.getNewEffect() == null) return;
         if (!abilities.isProsperity(p)) return;
 
