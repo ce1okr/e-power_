@@ -2,6 +2,7 @@ package com.empoweredsmp.listeners;
 
 import com.empoweredsmp.data.DataManager;
 import com.empoweredsmp.managers.AbilityManager;
+import com.empoweredsmp.managers.StarterKitManager;
 import com.empoweredsmp.model.PlayerData;
 import com.empoweredsmp.util.ItemUtil;
 import net.kyori.adventure.text.Component;
@@ -18,10 +19,12 @@ public class FragmentInteractListener implements Listener {
 
     private final AbilityManager abilities;
     private final DataManager data;
+    private final StarterKitManager starterKits;
 
-    public FragmentInteractListener(AbilityManager abilities, DataManager data) {
+    public FragmentInteractListener(AbilityManager abilities, DataManager data, StarterKitManager starterKits) {
         this.abilities = abilities;
         this.data = data;
+        this.starterKits = starterKits;
     }
 
     @EventHandler
@@ -56,6 +59,7 @@ public class FragmentInteractListener implements Listener {
             consumeOne(p, item);
             p.sendMessage(Component.text("Level Upgrader consumed! You are now level " + d.getLevel() + ".",
                     NamedTextColor.GOLD));
+            starterKits.grantLevelUpKit(p, d.getAbility(), d.getLevel());
         }
     }
 
