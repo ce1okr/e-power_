@@ -1,0 +1,97 @@
+# EmpoweredSMP configuration.
+# Every tunable number from the ability spec lives here so you can adjust
+# balance without recompiling. Comments show which ability/level a value
+# belongs to. Effect ticking runs every `effect-tick-interval-ticks`.
+
+effect-tick-interval-ticks: 20
+
+global-gates:
+  # These are also stored in data/global-state.yml at runtime (source of truth
+  # once the server has run once); this block only seeds first-run defaults.
+  nether-unlocked: false
+  end-unlocked: false
+  villagers-unlocked: false
+
+caps:
+  golden-apples-normal: 96
+  golden-apples-vitality: 128
+  enchanted-golden-apples-vitality-max: 5
+  xp-bottles-normal: 128
+  xp-bottles-prosperity-stacks: 3        # 3 stacks = 192
+  totems-normal: 1
+  totems-prosperity-level3: 2
+  cobwebs-normal: 64
+  cobwebs-mobility: 128
+  wind-charges: 128
+  ender-pearls-max: 6
+  ender-pearl-cooldown-seconds: 30
+
+enchant-caps:
+  protection-normal: 3
+  protection-vitality-level1: 4
+  sharpness-normal: 4
+  sharpness-strength-level2: 5
+  power-normal: 4
+  power-ranger-level1: 5
+  strength-effect-normal-max-amplifier: 0    # Strength I only
+  strength-effect-strength-ability-max-amplifier: 1 # Strength II at ability lvl2
+  speed-normal-max-amplifier: 0              # Speed I only
+  speed-mobility-max-amplifier: 1            # Speed II at mobility lvl2
+
+vitality:
+  max-hearts-by-level: {0: 11, 1: 11, 2: 13, 3: 16}   # in hearts (2 HP each)
+  heart-surge:
+    trigger-hearts: 3
+    restore-to-hearts: 16
+    cooldown-seconds: 240
+
+invisibility:
+  full-invis:
+    trigger-hearts: 4
+    cooldown-seconds: 45
+    duration-seconds: 8
+
+defense:
+  knockback-resistance-level1: 0.25
+  resistance-surge:
+    trigger-hearts: 3
+    amplifier: 4        # Resistance V (index 4)
+    duration-seconds: 20
+    cooldown-seconds: 100
+
+strength:
+  level1-crit-chance: 0.20
+  level2-crit-chance: 0.45
+  strength-surge:
+    trigger-hearts: 4
+    amplifier: 3         # Strength IV (index 3)
+    duration-seconds: 10
+    cooldown-seconds: 80
+
+mobility:
+  level3-aura:
+    trigger-hearts: 4
+    radius: 20
+    slowness-amplifier: 4  # Slowness V
+    mining-fatigue-amplifier: 9 # Mining Fatigue X
+    duration-seconds: 20
+    cooldown-seconds: 120
+
+ranger:
+  level1-damage-bonus: 0.20
+  level2-damage-bonus: 0.40
+  slowness-on-fifth-hit:
+    amplifier: 9   # Slowness X
+    duration-seconds: 15
+
+elemental:
+  level3-glow-radius: 50
+
+potion-effect-duration-multiplier:
+  level1: 1.5
+  level2: 2.0
+
+prosperity:
+  extra-inventory-slots: {1: 9, 2: 18, 3: 27}
+  xp-multiplier: 2.0
+  hero-of-village-discount: {2: 0.55, 3: 1.0}
