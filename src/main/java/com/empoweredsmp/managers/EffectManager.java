@@ -81,6 +81,11 @@ public class EffectManager extends BukkitRunnable {
                     give(p, PotionEffectType.INVISIBILITY, 0, dur);
                 }
                 if (level >= 2) give(p, PotionEffectType.SPEED, 0, dur);
+                // Level 3: total silence (footsteps, hurt sounds, everything the entity
+                // makes) on top of the Full Invis surge. setSilent() is all-or-nothing —
+                // there's no vanilla API to mute only footstep sound — so this is an
+                // intentionally broader version of "no walking sounds" reserved for L3.
+                p.setSilent(level >= 3);
             }
             case ELEMENTAL -> {
                 if (level >= 1) {
