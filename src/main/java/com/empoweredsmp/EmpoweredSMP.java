@@ -10,6 +10,7 @@ import com.empoweredsmp.data.DataManager;
 import com.empoweredsmp.data.GlobalState;
 import com.empoweredsmp.listeners.CombatListener;
 import com.empoweredsmp.listeners.DeathListener;
+import com.empoweredsmp.listeners.ElementalAbilityListener;
 import com.empoweredsmp.listeners.EnderPearlListener;
 import com.empoweredsmp.listeners.EnforcementListener;
 import com.empoweredsmp.listeners.ExtraInventoryListener;
@@ -19,6 +20,7 @@ import com.empoweredsmp.listeners.RangerCrossbowListener;
 import com.empoweredsmp.listeners.SurgeListener;
 import com.empoweredsmp.listeners.VillagerListener;
 import com.empoweredsmp.listeners.WorldAccessListener;
+import com.empoweredsmp.listeners.XpListener;
 import com.empoweredsmp.managers.AbilityManager;
 import com.empoweredsmp.managers.CooldownManager;
 import com.empoweredsmp.managers.EffectManager;
@@ -76,6 +78,8 @@ public class EmpoweredSMP extends JavaPlugin {
         pm.registerEvents(new LungeListener(cooldownManager), this);
         pm.registerEvents(new ExtraInventoryListener(extraInventoryManager), this);
         pm.registerEvents(new RangerCrossbowListener(), this);
+        pm.registerEvents(new XpListener(abilityManager, pConfig), this);
+        pm.registerEvents(new ElementalAbilityListener(abilityManager), this);
 
         // Commands
         getCommand("class").setExecutor(new ClassCommand(abilityManager, starterKitManager));
