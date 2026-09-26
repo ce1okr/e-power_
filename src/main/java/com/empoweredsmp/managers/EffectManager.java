@@ -88,14 +88,19 @@ public class EffectManager extends BukkitRunnable {
                     give(p, PotionEffectType.WATER_BREATHING, 0, dur);
                     give(p, PotionEffectType.HASTE, level >= 2 ? 1 : 0, dur);
                 }
-                if (level >= 3) give(p, PotionEffectType.DOLPHINS_GRACE, 0, dur);
+                if (level >= 3) {
+                    give(p, PotionEffectType.DOLPHINS_GRACE, 0, dur);
+                    applyElementalGlowAura(p);
+                }
             }
             case MOBILITY -> {
                 if (level >= 1) give(p, PotionEffectType.SPEED, level >= 2 ? 1 : 0, dur);
                 if (level >= 2) give(p, PotionEffectType.WEAVING, 0, dur);
+                applyMobilityGear(p, level);
             }
             case DEFENSE -> {
                 if (level >= 2) give(p, PotionEffectType.RESISTANCE, 0, dur);
+                keepShieldsUnbreakable(p, level);
             }
             case VITALITY -> {
                 give(p, PotionEffectType.REGENERATION, 0, dur);
@@ -171,5 +176,89 @@ public class EffectManager extends BukkitRunnable {
             changed = true;
         }
         if (changed) item.setItemMeta(meta);
+    }
+
+    /**
+     * Mobility L1+: Soul Speed 3 on any boots worn or carried. Mobility L2+: also
+     * Depth Strider 3 on worn boots specifically, and Swift Sneak 3 on any leggings
+     * worn or carried. Soul Speed and Depth Strider normally conflict in vanilla
+     * (you can only pick one), but the spec explicitly stacks both onto the same
+     * pair of boots at L2, so this force-applies both.
+     */
+    private void applyMobilityGear(Player p, int level) {
+        if (level < 1) return;
+
+        ItemStack wornBoots = p.getInventory().getBoots();
+        ensureEnchant(wornBoots, Enchantment.SOUL_SPEED, 3);
+        ensureEnchant(p.getInventory().getItemInOffHand(), Enchantment.SOUL_SPEED, 3);
+        for (ItemStack item : p.getInventory().getContents()) {
+            ensureEnchant(item, Enchantment.SOUL_SPEED, 3);
+        }
+
+        if (level >= 2) {
+            ensureEnchant(wornBoots, Enchantment.DEPTH_STRIDER, 3);
+
+            ItemStack wornLeggings = p.getInventory().getLeggings();
+            ensureEnchant(wornLeggings, Enchantment.SWIFT_SNEAK, 3);
+            ensureEnchant(p.getInventory().getItemInOffHand(), Enchantment.SWIFT_SNEAK, 3);
+            for (ItemStack item : p.getInventory().getContents()) {
+                ensureEnchant(item, Enchantment.SWIFT_SNEAK, 3);
+            }
+        }
+    }
+
+    /** Adds `ench` at `level` to `item` if it's the right gear slot and doesn't already have it. */
+    private void ensureEnchant(ItemStack item, Enchantment ench, int level) {
+        if (item == null || item.getType() == Material.AIR) return;
+        boolean isBootsEnchant = ench.equals(Enchantment.SOUL_SPEED) || ench.equals(Enchantment.DEPTH_STRIDER);
+        boolean isLeggingsEnchant = ench.equals(Enchantment.SWIFT_SNEAK);
+        String name = item.getType().name();
+        if (isBootsEnchant && !name.endsWith("_BOOTS")) return;
+        if (isLeggingsEnchant && !name.endsWith("_LEGGINGS")) return;
+
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return;
+        if (meta.getEnchantLevel(ench) < level) {
+            meta.addEnchant(ench, level, true);
+            item.setItemMeta(meta);
+        }
+    }
+
+    /**
+     * Defense L1+: keeps any Shield the player is carrying (worn/off-hand/inventory)
+     * permanently unbreakable, on top of the one granted directly at level-up.
+     */
+    private void keepShieldsUnbreakable(Player p, int level) {
+        if (level < 1) return;
+        makeUnbreakable(p.getInventory().getItemInMainHand());
+        makeUnbreakable(p.getInventory().getItemInOffHand());
+        for (ItemStack item : p.getInventory().getContents()) {
+            makeUnbreakable(item);
+        }
+    }
+
+    private void makeUnbreakable(ItemStack item) {
+        if (item == null || item.getType() != Material.SHIELD) return;
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null || meta.isUnbreakable()) return;
+        meta.setUnbreakable(true);
+        item.setItemMeta(meta);
+    }
+
+    /**
+     * Elemental L3: any player within elemental.level3-glow-radius blocks (default 50)
+     * who is currently in water gets Glowing, letting the Elemental player spot them.
+     */
+    private void applyElementalGlowAura(Player source) {
+        int radius = cfg.elementalGlowRadius();
+        double radiusSquared = (double) radius * radius;
+        for (Player nearby : Bukkit.getOnlinePlayers()) {
+            if (nearby.equals(source)) continue;
+            if (nearby.getWorld() != source.getWorld()) continue;
+            if (nearby.getLocation().distanceSquared(source.getLocation()) > radiusSquared) continue;
+            if (nearby.isUnderWater()) {
+                give(nearby, PotionEffectType.GLOWING, 0, cfg.effectTickInterval() + 40);
+            }
+        }
     }
 }
