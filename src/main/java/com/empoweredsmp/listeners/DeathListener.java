@@ -20,7 +20,8 @@ public class DeathListener implements Listener {
     private final ExtraInventoryManager extraInv;
     private final Material fragmentMaterial;
 
-    public DeathListener(AbilityManager abilities, DataManager data, ExtraInventoryManager extraInv, Material fragmentMaterial) {
+    public DeathListener(AbilityManager abilities, DataManager data, ExtraInventoryManager extraInv,
+                          Material fragmentMaterial) {
         this.abilities = abilities;
         this.data = data;
         this.extraInv = extraInv;
@@ -31,7 +32,6 @@ public class DeathListener implements Listener {
     public void onDeath(PlayerDeathEvent event) {
         Player victim = event.getEntity();
         PlayerData victimData = abilities.get(victim);
-        int levelAtDeath = victimData.getLevel(); // capture before this death's own counter may drop it
 
         // Death counter: 1/4 per death; at 4/4 lose a level (never drops below 0).
         boolean lostLevel = victimData.addDeathQuarter();
@@ -44,9 +44,9 @@ public class DeathListener implements Listener {
                     NamedTextColor.GRAY));
         }
 
-        // PvP kill: killer gets a Level Fragment, unless the victim was level 0 at the moment of death.
+        // PvP kill: killer always gets a Level Fragment, regardless of the victim's level.
         Player killer = victim.getKiller();
-        if (killer != null && levelAtDeath > 0) {
+        if (killer != null) {
             killer.getInventory().addItem(ItemUtil.buildLevelFragment(fragmentMaterial));
             killer.sendMessage(Component.text("You received a Level Fragment.", NamedTextColor.AQUA));
         }
