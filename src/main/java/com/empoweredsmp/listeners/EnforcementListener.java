@@ -21,6 +21,7 @@ import org.bukkit.event.player.PlayerItemConsumeEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.PotionMeta;
+import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.potion.PotionType;
 
@@ -98,8 +99,8 @@ public class EnforcementListener implements Listener {
             for (var entry : meta.getEnchants().entrySet()) {
                 Enchantment ench = entry.getKey();
                 int lvl = entry.getValue();
-                if (isProtection(ench) && lvl > effectiveProtectionCap(p)) return false;
-                if (isSharpness(ench) && lvl > effectiveSharpnessCap(p)) return false;
+                if (isProtectionFamily(ench) && lvl > effectiveProtectionCap(p)) return false;
+                if (isSharpnessFamily(ench) && lvl > effectiveSharpnessCap(p)) return false;
                 if (ench.equals(Enchantment.POWER) && lvl > effectivePowerCap(p)) return false;
             }
         }
@@ -107,12 +108,14 @@ public class EnforcementListener implements Listener {
         return true;
     }
 
-    private boolean isProtection(Enchantment e) {
-        return e.equals(Enchantment.PROTECTION);
+    private boolean isProtectionFamily(Enchantment e) {
+        return e.equals(Enchantment.PROTECTION) || e.equals(Enchantment.BLAST_PROTECTION)
+                || e.equals(Enchantment.PROJECTILE_PROTECTION) || e.equals(Enchantment.FIRE_PROTECTION);
     }
 
-    private boolean isSharpness(Enchantment e) {
-        return e.equals(Enchantment.SHARPNESS);
+    private boolean isSharpnessFamily(Enchantment e) {
+        return e.equals(Enchantment.SHARPNESS) || e.equals(Enchantment.SMITE)
+                || e.equals(Enchantment.BANE_OF_ARTHROPODS);
     }
 
     private int effectiveProtectionCap(Player p) {
@@ -145,6 +148,11 @@ public class EnforcementListener implements Listener {
                 deny(p, "Only the Elemental ability may use Fire Resistance Potions.");
                 return;
             }
+            if (isTurtleMasterPotion(item) && !abilities.isDefenseAtLeast(p, 0)) {
+                event.setCancelled(true);
+                deny(p, "Only the Defense ability may use Turtle Master Potions.");
+                return;
+            }
         }
         if (item.getType() == Material.ENCHANTED_GOLDEN_APPLE && !abilities.canUseEnchantedGoldenApple(p)) {
             event.setCancelled(true);
@@ -160,6 +168,14 @@ public class EnforcementListener implements Listener {
         return hasPotionEffectType(item, PotionEffectType.FIRE_RESISTANCE);
     }
 
+    private boolean isTurtleMasterPotion(ItemStack item) {
+        if (!(item.getItemMeta() instanceof PotionMeta meta)) return false;
+        PotionType base = meta.getBasePotionType();
+        if (base == null) return false;
+        return base == PotionType.TURTLE_MASTER || base == PotionType.LONG_TURTLE_MASTER
+                || base == PotionType.STRONG_TURTLE_MASTER;
+    }
+
     private boolean hasPotionEffectType(ItemStack item, PotionEffectType type) {
         if (!(item.getItemMeta() instanceof PotionMeta meta)) return false;
         if (meta.getBasePotionType() != null) {
@@ -169,26 +185,67 @@ public class EnforcementListener implements Listener {
         return meta.hasCustomEffects() && meta.getCustomEffects().stream().anyMatch(e -> e.getType().equals(type));
     }
 
-    // ---- Potion duration multiplier (Prosperity 1.5x / 2x) ----
+    // ---- Potion duration multiplier (Prosperity 1.5x / 2x) + general effect restrictions ----
 
     @EventHandler(ignoreCancelled = true)
     public void onPotionApplied(EntityPotionEffectEvent event) {
         if (!(event.getEntity() instanceof Player p)) return;
+        var newEffect = event.getNewEffect();
+        if (newEffect == null) return;
+        PotionEffectType type = newEffect.getType();
+
+        // General ability-exclusivity / amplifier caps, regardless of source (potion, beacon,
+        // another plugin, admin /effect command). These run for every cause, unlike the
+        // Prosperity multiplier below which only applies to actual drunk/splash/lingering potions.
+        if (type.equals(PotionEffectType.FIRE_RESISTANCE) && !abilities.canUseFireResistancePotion(p)) {
+            event.setCancelled(true);
+            return;
+        }
+        if (type.equals(PotionEffectType.INVISIBILITY) && !abilities.canUseInvisibilityPotion(p)) {
+            event.setCancelled(true);
+            return;
+        }
+        if (type.equals(PotionEffectType.WEAVING) && !abilities.canUseWeaving(p)) {
+            event.setCancelled(true);
+            return;
+        }
+        if (type.equals(PotionEffectType.STRENGTH) && newEffect.getAmplifier() >= 1
+                && !abilities.canUseStrength2(p)) {
+            event.setCancelled(true);
+            capAmplifierToZero(p, newEffect);
+            return;
+        }
+        if (type.equals(PotionEffectType.SPEED) && newEffect.getAmplifier() >= 1
+                && !abilities.canUseSpeed2(p)) {
+            event.setCancelled(true);
+            capAmplifierToZero(p, newEffect);
+            return;
+        }
+
+        // Prosperity potion-length multiplier: only for effects that came from an actual potion.
         if (event.getCause() != Cause.POTION_DRINK && event.getCause() != Cause.POTION_SPLASH
                 && event.getCause() != Cause.AREA_EFFECT_CLOUD) return;
-        if (event.getNewEffect() == null) return;
         if (!abilities.isProsperity(p)) return;
 
         double mult = abilities.isProsperityAtLeast(p, 2) ? cfg.potionMultiplierL2()
                 : abilities.isProsperityAtLeast(p, 1) ? cfg.potionMultiplierL1() : 1.0;
         if (mult <= 1.0) return;
 
-        var newEffect = event.getNewEffect();
         int scaledDuration = (int) Math.round(newEffect.getDuration() * mult);
         // Re-apply with the scaled duration next tick to avoid feedback looping this same event.
         org.bukkit.Bukkit.getScheduler().runTask(
                 org.bukkit.Bukkit.getPluginManager().getPlugin("EmpoweredSMP"),
                 () -> p.addPotionEffect(newEffect.withDuration(scaledDuration)));
+    }
+
+    /** Re-applies an effect at amplifier 0 (e.g. downgrades Strength II -> Strength I) instead of
+     *  fully denying it, since the base tier of these effects is available to everyone. */
+    private void capAmplifierToZero(Player p, PotionEffect original) {
+        PotionEffect capped = new PotionEffect(original.getType(), original.getDuration(), 0,
+                original.isAmbient(), original.hasParticles(), original.hasIcon());
+        org.bukkit.Bukkit.getScheduler().runTask(
+                org.bukkit.Bukkit.getPluginManager().getPlugin("EmpoweredSMP"),
+                () -> p.addPotionEffect(capped));
     }
 
     // ---- Stack caps: golden apples, XP bottles, totems, cobwebs, wind charges ----
