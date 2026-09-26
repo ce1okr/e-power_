@@ -72,15 +72,24 @@ public class StarterKitManager {
 
     /**
      * Granted the moment a player's level increases to newLevel (via the Level
-     * Upgrader), on top of whatever they already have. Currently only Ranger L2
-     * grants a new item; other abilities' level-ups are all passive stat changes
-     * handled continuously by EffectManager, so there's nothing to hand out.
+     * Upgrader), on top of whatever they already have. Ranger L2 grants a custom
+     * crossbow; Defense L1 grants an Unbreakable Shield (kept unbreakable
+     * afterward by EffectManager even if replaced). Other abilities' level-ups
+     * are all passive stat changes handled continuously by EffectManager.
      */
     public void grantLevelUpKit(Player p, Ability ability, int newLevel) {
         if (ability == Ability.RANGER && newLevel == 2) {
             p.getInventory().addItem(com.empoweredsmp.util.ItemUtil.buildRangerCrossbow());
             p.sendMessage(Component.text("You've been given a Quick Draw Crossbow — "
                     + "right-click to load it instantly, no charge time.", NamedTextColor.YELLOW));
+        }
+        if (ability == Ability.DEFENSE && newLevel == 1) {
+            ItemStack shield = new ItemStack(SHIELD);
+            ItemMeta meta = shield.getItemMeta();
+            meta.setUnbreakable(true);
+            shield.setItemMeta(meta);
+            p.getInventory().addItem(shield);
+            p.sendMessage(Component.text("You've been given an Unbreakable Shield.", NamedTextColor.YELLOW));
         }
     }
 
