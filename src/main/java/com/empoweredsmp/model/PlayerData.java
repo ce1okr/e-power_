@@ -6,9 +6,9 @@ import java.util.UUID;
 
 /**
  * Per-player persistent state. Ability is permanent once set (never null
- * again after /class assigns it). Level ranges 0-3. Death counter ranges
- * 0-4 quarters; hitting 4/4 drops the player one level (floored at 0, and
- * killing a level-0 player does not drop a fragment).
+ * again after /class assigns it, except via a reroll item/GUI). Level ranges
+ * 0-3. Death counter ranges 0-4 quarters; hitting 4/4 drops the player one
+ * level (floored at 0).
  */
 public class PlayerData {
 
@@ -107,5 +107,20 @@ public class PlayerData {
         this.prosperityTool1 = tool1;
         this.prosperityTool2 = tool2;
         return true;
+    }
+
+    /**
+     * Bypasses the normal "permanent once chosen" rule — used only by the reroll
+     * items/GUI. Resets level, death counter, bow choice, and Prosperity tool
+     * choice to fresh defaults for the new ability, as if starting over at
+     * Level 0 with that ability instead.
+     */
+    public void forceReroll(Ability newAbility) {
+        this.ability = newAbility;
+        this.level = 0;
+        this.deathCounter = 0;
+        this.bowEnchantChoice = BowEnchantChoice.MENDING;
+        this.prosperityTool1 = null;
+        this.prosperityTool2 = null;
     }
 }
