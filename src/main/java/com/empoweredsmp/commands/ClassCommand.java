@@ -3,6 +3,7 @@ package com.empoweredsmp.commands;
 import com.empoweredsmp.managers.AbilityManager;
 import com.empoweredsmp.managers.StarterKitManager;
 import com.empoweredsmp.model.Ability;
+import com.empoweredsmp.model.PlayerData;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
@@ -14,6 +15,15 @@ import org.bukkit.entity.Player;
 import java.util.Arrays;
 import java.util.stream.Collectors;
 
+/**
+ * /class <player> <ability>
+ * Requires empoweredsmp.admin (op by default). Assigns a player their ability,
+ * or CHANGES it if they already have one — so an op can run it on themselves
+ * or anyone else as many times as they like. A change resets the player to
+ * Level 0 with the new ability (level, death counter, bow choice and Prosperity
+ * tool choice are cleared) and grants that ability's Level 0 kit, exactly like
+ * the reroll items do. Re-assigning the ability a player already has does nothing.
+ */
 public class ClassCommand implements CommandExecutor {
 
     private final AbilityManager abilities;
@@ -46,21 +56,29 @@ public class ClassCommand implements CommandExecutor {
             return true;
         }
 
-        if (abilities.get(target).hasAbility()) {
-            sender.sendMessage(Component.text(target.getName() + " already has a permanent ability ("
-                    + abilities.get(target).getAbility() + ") and cannot be reassigned.", NamedTextColor.RED));
+        PlayerData data = abilities.get(target);
+        Ability previous = data.getAbility();
+
+        if (previous == ability) {
+            sender.sendMessage(Component.text(target.getName() + " already has the " + ability
+                    + " ability. Nothing changed.", NamedTextColor.YELLOW));
             return true;
         }
 
-        boolean ok = abilities.assign(target, ability);
-        if (ok) {
-            starterKits.grantLevelZeroKit(target, ability);
-            sender.sendMessage(Component.text("Assigned " + target.getName() + " the " + ability
-                    + " ability (permanent).", NamedTextColor.GREEN));
-            target.sendMessage(Component.text("You have been permanently assigned the " + ability
-                    + " ability!", NamedTextColor.GREEN));
+        data.forceReroll(ability);
+        abilities.save(target);
+        starterKits.grantLevelZeroKit(target, ability);
+
+        if (previous == null) {
+            sender.sendMessage(Component.text("Assigned " + target.getName() + " the " + ability + " ability.",
+                    NamedTextColor.GREEN));
+            target.sendMessage(Component.text("You have been assigned the " + ability + " ability!",
+                    NamedTextColor.GREEN));
         } else {
-            sender.sendMessage(Component.text("Could not assign ability (already set).", NamedTextColor.RED));
+            sender.sendMessage(Component.text("Changed " + target.getName() + "'s ability from " + previous
+                    + " to " + ability + " (reset to Level 0).", NamedTextColor.GREEN));
+            target.sendMessage(Component.text("Your ability has been changed to " + ability
+                    + ". You are back at Level 0.", NamedTextColor.GREEN));
         }
         return true;
     }
