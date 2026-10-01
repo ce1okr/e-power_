@@ -1,45 +1,41 @@
 package com.empoweredsmp.listeners;
 
 import com.empoweredsmp.managers.CooldownManager;
-import com.empoweredsmp.managers.StarterKitManager;
+import com.empoweredsmp.util.Config;
+import io.papermc.paper.event.entity.EntityLungeEvent;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
-import org.bukkit.event.block.Action;
-import org.bukkit.event.player.PlayerInteractEvent;
-import org.bukkit.inventory.EquipmentSlot;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.util.Vector;
 
+/**
+ * Mobility's starter spear is a real vanilla Spear with Lunge III. Minecraft's
+ * own Lunge handles the movement; this just enforces the 15-second cooldown
+ * (mobility.lunge-cooldown-seconds) on any player lunging with any spear.
+ */
 public class LungeListener implements Listener {
 
-    private final CooldownManager cooldowns;
+    private static final String COOLDOWN_TAG = "lunge";
 
-    public LungeListener(CooldownManager cooldowns) {
+    private final CooldownManager cooldowns;
+    private final Config cfg;
+
+    public LungeListener(CooldownManager cooldowns, Config cfg) {
         this.cooldowns = cooldowns;
+        this.cfg = cfg;
     }
 
     @EventHandler
-    public void onInteract(PlayerInteractEvent event) {
-        if (event.getHand() != EquipmentSlot.HAND) return;
-        if (event.getAction() != Action.RIGHT_CLICK_AIR && event.getAction() != Action.RIGHT_CLICK_BLOCK) return;
-        Player p = event.getPlayer();
-        ItemStack item = event.getItem();
-        if (item == null || item.getType() != StarterKitManager.SPEAR_MATERIAL) return;
+    public void onLunge(EntityLungeEvent event) {
+        if (!(event.getEntity() instanceof Player p)) return;
 
-        if (cooldowns.isOnCooldown(p.getUniqueId(), "lunge")) {
+        if (cooldowns.isOnCooldown(p.getUniqueId(), COOLDOWN_TAG)) {
+            event.setCancelled(true);
             p.sendMessage(Component.text("Lunge on cooldown: "
-                    + cooldowns.remainingSeconds(p.getUniqueId(), "lunge") + "s", NamedTextColor.RED));
+                    + cooldowns.remainingSeconds(p.getUniqueId(), COOLDOWN_TAG) + "s", NamedTextColor.RED));
             return;
         }
-        cooldowns.set(p.getUniqueId(), "lunge", 15);
-
-        Location loc = p.getLocation();
-        Vector direction = loc.getDirection().normalize().multiply(1.6).setY(0.4);
-        p.setVelocity(direction);
-        p.getWorld().spawnParticle(org.bukkit.Particle.CLOUD, loc, 10, 0.2, 0.2, 0.2, 0.02);
+        cooldowns.set(p.getUniqueId(), COOLDOWN_TAG, cfg.mobilityLungeCooldownSeconds());
     }
 }
