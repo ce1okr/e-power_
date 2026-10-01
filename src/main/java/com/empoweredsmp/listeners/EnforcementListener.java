@@ -1,11 +1,10 @@
 package com.empoweredsmp.listeners;
 
 import com.empoweredsmp.managers.AbilityManager;
-import com.empoweredsmp.managers.CooldownManager;
-import com.empoweredsmp.model.Ability;
 import com.empoweredsmp.util.Config;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
@@ -15,12 +14,15 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityPickupItemEvent;
 import org.bukkit.event.entity.EntityPotionEffectEvent;
 import org.bukkit.event.entity.EntityPotionEffectEvent.Cause;
+import org.bukkit.event.entity.EntityShootBowEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerItemConsumeEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.FireworkMeta;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.PotionMeta;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.potion.PotionType;
@@ -28,11 +30,8 @@ import org.bukkit.potion.PotionType;
 import java.util.Set;
 
 /**
- * Blocks/removes items, enchants and potions that a player's ability+level
- * does not permit, and enforces the shared stack-size caps. Where an item
- * is already in an inventory (e.g. from another plugin or /give), it is
- * removed the next time it's interacted with or picked up rather than
- * scanned constantly, to keep this lightweight.
+ * Enforces "only this ability can use X" rules, enchant caps and item caps.
+ * Disallowed items/effects are blocked when used, equipped or picked up.
  */
 public class EnforcementListener implements Listener {
 
@@ -43,13 +42,13 @@ public class EnforcementListener implements Listener {
             Material.NETHERITE_PICKAXE, Material.NETHERITE_AXE,
             Material.NETHERITE_SHOVEL, Material.NETHERITE_HOE);
 
+    private final Plugin plugin;
     private final AbilityManager abilities;
-    private final CooldownManager cooldowns;
     private final Config cfg;
 
-    public EnforcementListener(AbilityManager abilities, CooldownManager cooldowns, Config cfg) {
+    public EnforcementListener(Plugin plugin, AbilityManager abilities, Config cfg) {
+        this.plugin = plugin;
         this.abilities = abilities;
-        this.cooldowns = cooldowns;
         this.cfg = cfg;
     }
 
@@ -57,7 +56,7 @@ public class EnforcementListener implements Listener {
         p.sendMessage(Component.text(reason, NamedTextColor.RED));
     }
 
-    // ---- Equipping netherite gear / swords / spears via click or interact ----
+    // ---- Equipping / using gear ----
 
     @EventHandler(priority = EventPriority.HIGH)
     public void onClick(InventoryClickEvent event) {
@@ -75,6 +74,12 @@ public class EnforcementListener implements Listener {
         Player p = event.getPlayer();
         ItemStack item = event.getItem();
         if (item == null) return;
+
+        if (isPvpFirework(item) && !abilities.canUseRangerGear(p)) {
+            event.setCancelled(true);
+            deny(p, "Only Rangers can use PvP firework rockets.");
+            return;
+        }
         if (!isAllowedItem(p, item)) {
             event.setCancelled(true);
             deny(p, "Your ability does not allow you to use that item.");
@@ -86,13 +91,8 @@ public class EnforcementListener implements Listener {
 
         if (NETHERITE_ARMOR.contains(type) && !abilities.canUseNetheriteArmor(p)) return false;
         if (type == Material.NETHERITE_SWORD && !abilities.canUseNetheriteSword(p)) return false;
-        // NOTE: Vanilla Minecraft has no "Spear" item. The Mace (added in 1.21) is the closest
-        // vanilla analogue; if you want Mobility-only Mace gating, uncomment below.
-        // if (type == Material.MACE && !abilities.canUseNetheriteSpear(p)) return false;
-
-        if (NETHERITE_TOOLS.contains(type)) {
-            if (!abilities.canUseNetheriteTool(p, type)) return false;
-        }
+        if (type == Material.NETHERITE_SPEAR && !abilities.canUseNetheriteSpear(p)) return false;
+        if (NETHERITE_TOOLS.contains(type) && !abilities.canUseNetheriteTool(p, type)) return false;
 
         if (item.hasItemMeta()) {
             ItemMeta meta = item.getItemMeta();
@@ -104,7 +104,6 @@ public class EnforcementListener implements Listener {
                 if (ench.equals(Enchantment.POWER) && lvl > effectivePowerCap(p)) return false;
             }
         }
-
         return true;
     }
 
@@ -119,18 +118,41 @@ public class EnforcementListener implements Listener {
     }
 
     private int effectiveProtectionCap(Player p) {
-        return abilities.canUseProtection4(p) ? cfg.protectionVitalityL1() : cfg.protectionNormal();
+        return abilities.canUseProtection4(p) ? cfg.protectionVitality() : cfg.protectionNormal();
     }
 
     private int effectiveSharpnessCap(Player p) {
-        return abilities.canUseSharpness5(p) ? cfg.sharpnessStrengthL2() : cfg.sharpnessNormal();
+        return abilities.canUseSharpness5(p) ? cfg.sharpnessStrength() : cfg.sharpnessNormal();
     }
 
     private int effectivePowerCap(Player p) {
-        return abilities.canUsePower5(p) ? cfg.powerRangerL1() : cfg.powerNormal();
+        return abilities.canUsePower5(p) ? cfg.powerRanger() : cfg.powerNormal();
     }
 
-    // ---- Potions ----
+    // ---- Ranger-only ammo: tipped arrows and PvP (explosive) firework rockets ----
+
+    /** A firework rocket with explosion stars (the kind used for crossbow PvP), not a plain flight rocket. */
+    private boolean isPvpFirework(ItemStack item) {
+        return item != null && item.getType() == Material.FIREWORK_ROCKET
+                && item.getItemMeta() instanceof FireworkMeta meta && meta.hasEffects();
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onShoot(EntityShootBowEvent event) {
+        if (!(event.getEntity() instanceof Player p)) return;
+        if (abilities.canUseRangerGear(p)) return;
+        ItemStack ammo = event.getConsumable();
+        if (ammo == null) return;
+        if (ammo.getType() == Material.TIPPED_ARROW) {
+            event.setCancelled(true);
+            deny(p, "Only Rangers can shoot tipped arrows.");
+        } else if (isPvpFirework(ammo)) {
+            event.setCancelled(true);
+            deny(p, "Only Rangers can shoot PvP firework rockets.");
+        }
+    }
+
+    // ---- Potions and food ----
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onConsume(PlayerItemConsumeEvent event) {
@@ -138,17 +160,17 @@ public class EnforcementListener implements Listener {
         ItemStack item = event.getItem();
         if (item.getType() == Material.POTION || item.getType() == Material.SPLASH_POTION
                 || item.getType() == Material.LINGERING_POTION) {
-            if (isInvisibilityPotion(item) && !abilities.canUseInvisibilityPotion(p)) {
+            if (hasPotionEffectType(item, PotionEffectType.INVISIBILITY) && !abilities.canUseInvisibilityPotion(p)) {
                 event.setCancelled(true);
-                deny(p, "Only Invisibility-ability players may drink Invisibility Potions.");
+                deny(p, "Only the Invisibility ability may use Invisibility Potions.");
                 return;
             }
-            if (isFireResistancePotion(item) && !abilities.canUseFireResistancePotion(p)) {
+            if (hasPotionEffectType(item, PotionEffectType.FIRE_RESISTANCE) && !abilities.canUseFireResistancePotion(p)) {
                 event.setCancelled(true);
                 deny(p, "Only the Elemental ability may use Fire Resistance Potions.");
                 return;
             }
-            if (isTurtleMasterPotion(item) && !abilities.isDefenseAtLeast(p, 0)) {
+            if (isTurtleMasterPotion(item) && !abilities.canUseTurtleMaster(p)) {
                 event.setCancelled(true);
                 deny(p, "Only the Defense ability may use Turtle Master Potions.");
                 return;
@@ -156,16 +178,8 @@ public class EnforcementListener implements Listener {
         }
         if (item.getType() == Material.ENCHANTED_GOLDEN_APPLE && !abilities.canUseEnchantedGoldenApple(p)) {
             event.setCancelled(true);
-            deny(p, "Only Vitality (level 2+) may eat Enchanted Golden Apples.");
+            deny(p, "Only the Vitality ability may eat Enchanted Golden Apples.");
         }
-    }
-
-    private boolean isInvisibilityPotion(ItemStack item) {
-        return hasPotionEffectType(item, PotionEffectType.INVISIBILITY);
-    }
-
-    private boolean isFireResistancePotion(ItemStack item) {
-        return hasPotionEffectType(item, PotionEffectType.FIRE_RESISTANCE);
     }
 
     private boolean isTurtleMasterPotion(ItemStack item) {
@@ -178,25 +192,21 @@ public class EnforcementListener implements Listener {
 
     private boolean hasPotionEffectType(ItemStack item, PotionEffectType type) {
         if (!(item.getItemMeta() instanceof PotionMeta meta)) return false;
-        if (meta.getBasePotionType() != null) {
-            PotionType base = meta.getBasePotionType();
-            if (base.getPotionEffects().stream().anyMatch(e -> e.getType().equals(type))) return true;
-        }
+        PotionType base = meta.getBasePotionType();
+        if (base != null && base.getPotionEffects().stream().anyMatch(e -> e.getType().equals(type))) return true;
         return meta.hasCustomEffects() && meta.getCustomEffects().stream().anyMatch(e -> e.getType().equals(type));
     }
 
-    // ---- Potion duration multiplier (Prosperity 1.5x / 2x) + general effect restrictions ----
+    // ---- Effect exclusivity, amplifier caps, Prosperity potion multiplier ----
 
     @EventHandler(ignoreCancelled = true)
     public void onPotionApplied(EntityPotionEffectEvent event) {
         if (!(event.getEntity() instanceof Player p)) return;
-        var newEffect = event.getNewEffect();
+        PotionEffect newEffect = event.getNewEffect();
         if (newEffect == null) return;
         PotionEffectType type = newEffect.getType();
 
-        // General ability-exclusivity / amplifier caps, regardless of source (potion, beacon,
-        // another plugin, admin /effect command). These run for every cause, unlike the
-        // Prosperity multiplier below which only applies to actual drunk/splash/lingering potions.
+        // These apply to every source (potion, beacon, another plugin, /effect).
         if (type.equals(PotionEffectType.FIRE_RESISTANCE) && !abilities.canUseFireResistancePotion(p)) {
             event.setCancelled(true);
             return;
@@ -222,33 +232,27 @@ public class EnforcementListener implements Listener {
             return;
         }
 
-        // Prosperity potion-length multiplier: only for effects that came from an actual potion.
+        // Prosperity: potion effects last longer (only for real potions).
         if (event.getCause() != Cause.POTION_DRINK && event.getCause() != Cause.POTION_SPLASH
                 && event.getCause() != Cause.AREA_EFFECT_CLOUD) return;
-        if (!abilities.isProsperity(p)) return;
+        if (!abilities.isProsperityAtLeast(p, 1)) return;
 
-        double mult = abilities.isProsperityAtLeast(p, 2) ? cfg.potionMultiplierL2()
-                : abilities.isProsperityAtLeast(p, 1) ? cfg.potionMultiplierL1() : 1.0;
+        double mult = cfg.prosperityPotionMultiplier(abilities.levelOf(p));
         if (mult <= 1.0) return;
 
         int scaledDuration = (int) Math.round(newEffect.getDuration() * mult);
-        // Re-apply with the scaled duration next tick to avoid feedback looping this same event.
-        org.bukkit.Bukkit.getScheduler().runTask(
-                org.bukkit.Bukkit.getPluginManager().getPlugin("EmpoweredSMP"),
-                () -> p.addPotionEffect(newEffect.withDuration(scaledDuration)));
+        // Re-apply with the longer duration next tick (cause is PLUGIN then, so it won't scale twice).
+        Bukkit.getScheduler().runTask(plugin, () -> p.addPotionEffect(newEffect.withDuration(scaledDuration)));
     }
 
-    /** Re-applies an effect at amplifier 0 (e.g. downgrades Strength II -> Strength I) instead of
-     *  fully denying it, since the base tier of these effects is available to everyone. */
+    /** Downgrades e.g. Strength II to Strength I instead of denying the effect entirely. */
     private void capAmplifierToZero(Player p, PotionEffect original) {
         PotionEffect capped = new PotionEffect(original.getType(), original.getDuration(), 0,
                 original.isAmbient(), original.hasParticles(), original.hasIcon());
-        org.bukkit.Bukkit.getScheduler().runTask(
-                org.bukkit.Bukkit.getPluginManager().getPlugin("EmpoweredSMP"),
-                () -> p.addPotionEffect(capped));
+        Bukkit.getScheduler().runTask(plugin, () -> p.addPotionEffect(capped));
     }
 
-    // ---- Stack caps: golden apples, XP bottles, totems, cobwebs, wind charges ----
+    // ---- Item caps ----
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onPickup(EntityPickupItemEvent event) {
@@ -273,15 +277,18 @@ public class EnforcementListener implements Listener {
 
     private int capFor(Player p, Material type) {
         return switch (type) {
-            case GOLDEN_APPLE -> abilities.isVitality(p) ? cfg.capGoldenApplesVitality() : cfg.capGoldenApplesNormal();
-            case EXPERIENCE_BOTTLE -> abilities.isProsperity(p)
+            case GOLDEN_APPLE -> abilities.isVitalityAtLeast(p, 1)
+                    ? cfg.capGoldenApplesVitality() : cfg.capGoldenApplesNormal();
+            case ENCHANTED_GOLDEN_APPLE -> abilities.isVitalityAtLeast(p, 1)
+                    ? cfg.capEnchantedGoldenApples(abilities.levelOf(p)) : 0;
+            case EXPERIENCE_BOTTLE -> abilities.isProsperityAtLeast(p, 1)
                     ? cfg.capXpBottlesProsperityStacks() * 64 : cfg.capXpBottlesNormal();
-            case TOTEM_OF_UNDYING -> (abilities.isProsperityAtLeast(p, 3))
-                    ? cfg.capTotemsProsperityL3() : cfg.capTotemsNormal();
-            case COBWEB -> abilities.isMobility(p) ? cfg.capCobwebsMobility() : cfg.capCobwebsNormal();
+            case TOTEM_OF_UNDYING -> abilities.isProsperityAtLeast(p, 1)
+                    ? cfg.capTotemsProsperity() : cfg.capTotemsNormal();
+            case COBWEB -> abilities.isMobilityAtLeast(p, 1)
+                    ? cfg.capCobwebsMobility() : cfg.capCobwebsNormal();
             case WIND_CHARGE -> cfg.capWindCharges();
             case ENDER_PEARL -> cfg.capEnderPearlsMax();
-            case ENCHANTED_GOLDEN_APPLE -> abilities.canUseEnchantedGoldenApple(p) ? cfg.capEnchantedGoldenApplesVitality() : 0;
             default -> -1;
         };
     }
