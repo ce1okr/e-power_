@@ -3,25 +3,25 @@ version: '1.0.0'
 main: com.empoweredsmp.EmpoweredSMP
 api-version: '26.2'
 author: YourName
-description: Empowered SMP - custom ability-class RPG plugin (Prosperity, Invisibility, Elemental, Vitality, Ranger, Mobility, Defense, Strength)
+description: Empowered SMP - custom ability RPG plugin (Strength, Defense, Mobility, Ranger, Vitality, Elemental, Invisibility, Prosperity)
 
 commands:
   class:
-    description: Assign a player's permanent ability class (admin only)
+    description: Assign or change a player's ability (admin only; resets them to Level 0)
     usage: /class <player> <ability>
     permission: empoweredsmp.admin
   ei:
     description: Open your Prosperity extra inventory
     usage: /ei
-  bowchoice:
-    description: 'Ranger: choose Infinity or Mending on whatever bow you hold'
-    usage: /bowchoice <infinity|mending>
   toolchoice:
-    description: 'Prosperity L2: permanently choose your 2 netherite tool types'
+    description: 'Prosperity Low Tier: permanently choose your 2 netherite tool types'
     usage: /toolchoice <tool1> <tool2>
+  curse:
+    description: 'Prosperity: curse an online player (cooldown applies)'
+    usage: /curse <player>
   empowered:
     description: Admin control command for Empowered SMP
-    usage: /empowered <setlevel|info|resetdeaths> ...
+    usage: /empowered <info|setlevel|resetdeaths> <player> [value]
     permission: empoweredsmp.admin
     aliases: [esmp, eadmin]
   unlocknether:
@@ -39,7 +39,7 @@ commands:
 
 permissions:
   empoweredsmp.admin:
-    description: Can assign classes and manage player levels
+    description: Can assign abilities and manage player tiers
     default: op
   empoweredsmp.op:
     description: Can permanently unlock global world/villager gates
