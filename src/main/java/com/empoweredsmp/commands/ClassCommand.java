@@ -20,9 +20,8 @@ import java.util.stream.Collectors;
  * Requires empoweredsmp.admin (op by default). Assigns a player their ability,
  * or CHANGES it if they already have one, so an op can run it on themselves or
  * anyone else as many times as they like. A change resets the player to Level 0
- * with the new ability (level and death counter cleared) and grants that
- * ability's Level 0 kit. Re-assigning the ability a player already has does
- * nothing.
+ * (tier, death counter and Prosperity tool choice cleared) and grants the new
+ * ability's Level 0 kit. Re-assigning the ability a player already has does nothing.
  */
 public class ClassCommand implements CommandExecutor {
 
@@ -66,8 +65,7 @@ public class ClassCommand implements CommandExecutor {
         }
 
         data.setAbility(ability);
-        data.setLevel(0);
-        data.setDeathCounter(0);
+        data.resetForAbilityChange();
         abilities.save(target);
         starterKits.grantLevelZeroKit(target, ability);
 
