@@ -6,22 +6,17 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.PotionMeta;
 import org.bukkit.potion.PotionType;
 
 import static org.bukkit.Material.*;
 
 /**
- * One-time Level 0 kits, granted the moment /class assigns an ability.
- * NOTE: vanilla Minecraft has no "Spear" item type, so Mobility's "Lunge 3
- * Spear" is approximated here with a Trident tagged for a custom lunge
- * ability (see LungeListener). If your server has a custom spear item
- * plugin, swap SPEAR_MATERIAL below to match it.
+ * Level 0 kits, granted the moment an ability is assigned (/class).
+ * Mobility's spear is the real vanilla Spear with the real Lunge enchantment;
+ * the 15-second cooldown is enforced by LungeListener.
  */
 public class StarterKitManager {
-
-    public static final org.bukkit.Material SPEAR_MATERIAL = TRIDENT;
 
     public void grantLevelZeroKit(Player p, Ability ability) {
         switch (ability) {
@@ -38,12 +33,8 @@ public class StarterKitManager {
                 p.getInventory().addItem(chest, legs);
             }
             case MOBILITY -> {
-                ItemStack spear = new ItemStack(SPEAR_MATERIAL);
-                ItemMeta meta = spear.getItemMeta();
-                meta.displayName(Component.text("Lunge Spear", NamedTextColor.LIGHT_PURPLE));
-                meta.lore(java.util.List.of(Component.text("Right-click to lunge forward. 15s cooldown.")
-                        .color(NamedTextColor.GRAY)));
-                spear.setItemMeta(meta);
+                ItemStack spear = new ItemStack(DIAMOND_SPEAR);
+                spear.addUnsafeEnchantment(Enchantment.LUNGE, 3);
                 p.getInventory().addItem(spear);
             }
             case RANGER -> {
@@ -52,12 +43,13 @@ public class StarterKitManager {
                 p.getInventory().addItem(bow, new ItemStack(ARROW, 64));
             }
             case VITALITY -> {
-                // Max health handled continuously by EffectManager; Regeneration I is permanent (also there).
-                p.sendMessage(Component.text("Vitality grants +1 heart and permanent Regeneration I.",
+                // 11 hearts + Regeneration I are applied continuously by EffectManager.
+                p.sendMessage(Component.text("Vitality grants 11 hearts and Regeneration I.",
                         NamedTextColor.GREEN));
             }
             case ELEMENTAL -> {
-                p.sendMessage(Component.text("Elemental grants early Nether access.", NamedTextColor.GREEN));
+                p.sendMessage(Component.text("Elemental can enter the Nether before everyone else.",
+                        NamedTextColor.GREEN));
             }
             case INVISIBILITY -> {
                 for (int i = 0; i < 2; i++) {
@@ -67,29 +59,6 @@ public class StarterKitManager {
             case PROSPERITY -> {
                 p.getInventory().addItem(new ItemStack(VILLAGER_SPAWN_EGG, 2));
             }
-        }
-    }
-
-    /**
-     * Granted the moment a player's level increases to newLevel (via the Level
-     * Upgrader), on top of whatever they already have. Ranger L2 grants a custom
-     * crossbow; Defense L1 grants an Unbreakable Shield (kept unbreakable
-     * afterward by EffectManager even if replaced). Other abilities' level-ups
-     * are all passive stat changes handled continuously by EffectManager.
-     */
-    public void grantLevelUpKit(Player p, Ability ability, int newLevel) {
-        if (ability == Ability.RANGER && newLevel == 2) {
-            p.getInventory().addItem(com.empoweredsmp.util.ItemUtil.buildRangerCrossbow());
-            p.sendMessage(Component.text("You've been given a Quick Draw Crossbow — "
-                    + "right-click to load it instantly, no charge time.", NamedTextColor.YELLOW));
-        }
-        if (ability == Ability.DEFENSE && newLevel == 1) {
-            ItemStack shield = new ItemStack(SHIELD);
-            ItemMeta meta = shield.getItemMeta();
-            meta.setUnbreakable(true);
-            shield.setItemMeta(meta);
-            p.getInventory().addItem(shield);
-            p.sendMessage(Component.text("You've been given an Unbreakable Shield.", NamedTextColor.YELLOW));
         }
     }
 
