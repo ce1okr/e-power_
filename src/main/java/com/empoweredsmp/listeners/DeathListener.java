@@ -5,6 +5,7 @@ import com.empoweredsmp.managers.AbilityManager;
 import com.empoweredsmp.managers.ExtraInventoryManager;
 import com.empoweredsmp.model.PlayerData;
 import com.empoweredsmp.util.ItemUtil;
+import com.empoweredsmp.util.Tiers;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Material;
@@ -21,7 +22,7 @@ public class DeathListener implements Listener {
     private final Material fragmentMaterial;
 
     public DeathListener(AbilityManager abilities, DataManager data, ExtraInventoryManager extraInv,
-                          Material fragmentMaterial) {
+                         Material fragmentMaterial) {
         this.abilities = abilities;
         this.data = data;
         this.extraInv = extraInv;
@@ -33,18 +34,18 @@ public class DeathListener implements Listener {
         Player victim = event.getEntity();
         PlayerData victimData = abilities.get(victim);
 
-        // Death counter: 1/4 per death; at 4/4 lose a level (never drops below 0).
-        boolean lostLevel = victimData.addDeathQuarter();
+        // Death counter: 1/4 per death; at 4/4 you drop one tier (never below Level 0).
+        boolean lostTier = victimData.addDeathQuarter();
         data.save(victim.getUniqueId());
-        if (lostLevel) {
-            victim.sendMessage(Component.text("You lost a level from too many deaths! You are now level "
-                    + victimData.getLevel() + ".", NamedTextColor.RED));
+        if (lostTier) {
+            victim.sendMessage(Component.text("Too many deaths! You are now " + Tiers.name(victimData.getLevel()) + ".",
+                    NamedTextColor.RED));
         } else {
             victim.sendMessage(Component.text("Death counter: " + victimData.getDeathCounter() + "/4",
                     NamedTextColor.GRAY));
         }
 
-        // PvP kill: killer always gets a Level Fragment, regardless of the victim's level.
+        // PvP kill: the killer always gets a Level Fragment, whatever the victim's tier.
         Player killer = victim.getKiller();
         if (killer != null) {
             killer.getInventory().addItem(ItemUtil.buildLevelFragment(fragmentMaterial));
