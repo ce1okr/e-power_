@@ -1,7 +1,6 @@
 package com.empoweredsmp.data;
 
 import com.empoweredsmp.model.Ability;
-import com.empoweredsmp.model.BowEnchantChoice;
 import com.empoweredsmp.model.PlayerData;
 import org.bukkit.Material;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -17,8 +16,8 @@ import java.util.UUID;
 import java.util.logging.Level;
 
 /**
- * Persists each player's ability, level, death counter and Prosperity
- * extra-inventory contents to individual YAML files under
+ * Persists each player's ability, tier, death counter, curse timers and
+ * Prosperity extra-inventory contents to individual YAML files under
  * plugins/EmpoweredSMP/playerdata/<uuid>.yml.
  */
 public class DataManager {
@@ -46,11 +45,10 @@ public class DataManager {
         File f = fileFor(uuid);
         if (f.exists()) {
             YamlConfiguration y = YamlConfiguration.loadConfiguration(f);
-            String abilityStr = y.getString("ability", null);
-            data.setAbility(Ability.fromString(abilityStr));
+            data.setAbility(Ability.fromString(y.getString("ability", null)));
+            // setLevel clamps to 0..2, so old Level 2-3 players load as High Tier.
             data.setLevel(y.getInt("level", 0));
             data.setDeathCounter(y.getInt("death-counter", 0));
-            data.setBowEnchantChoice(BowEnchantChoice.fromString(y.getString("bow-enchant-choice", null)));
             String tool1Str = y.getString("prosperity-tool-1", null);
             String tool2Str = y.getString("prosperity-tool-2", null);
             if (tool1Str != null && tool2Str != null) {
@@ -60,6 +58,8 @@ public class DataManager {
                     // stored material name no longer valid; leave unset
                 }
             }
+            data.setCurseCooldownUntil(y.getLong("curse-cooldown-until", 0L));
+            data.setCursedUntil(y.getLong("cursed-until", 0L));
         }
         return data;
     }
@@ -71,11 +71,12 @@ public class DataManager {
         y.set("ability", data.getAbility() == null ? null : data.getAbility().name());
         y.set("level", data.getLevel());
         y.set("death-counter", data.getDeathCounter());
-        y.set("bow-enchant-choice", data.getBowEnchantChoice().name());
         if (data.hasChosenProsperityTools()) {
             y.set("prosperity-tool-1", data.getProsperityTool1().name());
             y.set("prosperity-tool-2", data.getProsperityTool2().name());
         }
+        y.set("curse-cooldown-until", data.getCurseCooldownUntil());
+        y.set("cursed-until", data.getCursedUntil());
         try {
             y.save(fileFor(uuid));
         } catch (IOException e) {
