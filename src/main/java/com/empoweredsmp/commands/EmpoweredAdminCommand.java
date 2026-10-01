@@ -2,8 +2,8 @@ package com.empoweredsmp.commands;
 
 import com.empoweredsmp.data.DataManager;
 import com.empoweredsmp.managers.AbilityManager;
-import com.empoweredsmp.managers.StarterKitManager;
 import com.empoweredsmp.model.PlayerData;
+import com.empoweredsmp.util.Tiers;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
@@ -16,12 +16,10 @@ public class EmpoweredAdminCommand implements CommandExecutor {
 
     private final AbilityManager abilities;
     private final DataManager data;
-    private final StarterKitManager starterKits;
 
-    public EmpoweredAdminCommand(AbilityManager abilities, DataManager data, StarterKitManager starterKits) {
+    public EmpoweredAdminCommand(AbilityManager abilities, DataManager data) {
         this.abilities = abilities;
         this.data = data;
-        this.starterKits = starterKits;
     }
 
     @Override
@@ -45,25 +43,27 @@ public class EmpoweredAdminCommand implements CommandExecutor {
         PlayerData d = abilities.get(target);
 
         switch (sub) {
-            case "info" -> sender.sendMessage(Component.text(target.getName() + " -> ability="
-                    + d.getAbility() + " level=" + d.getLevel() + " deathCounter=" + d.getDeathCounter() + "/4",
-                    NamedTextColor.YELLOW));
+            case "info" -> {
+                long now = System.currentTimeMillis();
+                sender.sendMessage(Component.text(target.getName() + " -> ability=" + d.getAbility()
+                        + ", " + Tiers.name(d.getLevel()) + " (level " + d.getLevel() + ")"
+                        + ", deaths " + d.getDeathCounter() + "/4"
+                        + (d.isCursed(now) ? ", CURSED" : ""), NamedTextColor.YELLOW));
+            }
             case "setlevel" -> {
                 if (args.length < 3) {
-                    sender.sendMessage(Component.text("Usage: /empowered setlevel <player> <0-3>", NamedTextColor.RED));
+                    sender.sendMessage(Component.text("Usage: /empowered setlevel <player> <0|1|2>"
+                            + "  (0 = Level 0, 1 = Low Tier, 2 = High Tier)", NamedTextColor.RED));
                     return true;
                 }
                 try {
                     int lvl = Integer.parseInt(args[2]);
                     d.setLevel(lvl);
                     data.save(target.getUniqueId());
-                    if (d.hasAbility()) {
-                        starterKits.grantLevelUpKit(target, d.getAbility(), d.getLevel());
-                    }
-                    sender.sendMessage(Component.text("Set " + target.getName() + " to level " + d.getLevel(),
+                    sender.sendMessage(Component.text("Set " + target.getName() + " to " + Tiers.name(d.getLevel()),
                             NamedTextColor.GREEN));
                 } catch (NumberFormatException e) {
-                    sender.sendMessage(Component.text("Level must be a number 0-3.", NamedTextColor.RED));
+                    sender.sendMessage(Component.text("Level must be 0, 1 or 2.", NamedTextColor.RED));
                 }
             }
             case "resetdeaths" -> {
