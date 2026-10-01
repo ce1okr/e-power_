@@ -8,10 +8,8 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerExpChangeEvent;
 
 /**
- * Prosperity Level 1: "Double Experience Levels". Multiplies the raw XP amount
- * on every gain (orbs, breeding, furnace/grindstone collection, etc.) by
- * prosperity.xp-multiplier in config.yml (default 2.0), which in turn speeds
- * up leveling by the same factor.
+ * Prosperity: experience gains are multiplied (x1.5 Low Tier, x2 High Tier,
+ * configurable under prosperity.xp-multiplier).
  */
 public class XpListener implements Listener {
 
@@ -26,8 +24,8 @@ public class XpListener implements Listener {
     @EventHandler
     public void onExpChange(PlayerExpChangeEvent event) {
         Player p = event.getPlayer();
-        if (abilities.isProsperityAtLeast(p, 1) && event.getAmount() > 0) {
-            event.setAmount((int) Math.round(event.getAmount() * cfg.prosperityXpMultiplier()));
-        }
+        if (!abilities.isProsperityAtLeast(p, 1) || event.getAmount() <= 0) return;
+        double multiplier = cfg.prosperityXpMultiplier(abilities.levelOf(p));
+        event.setAmount((int) Math.round(event.getAmount() * multiplier));
     }
 }
