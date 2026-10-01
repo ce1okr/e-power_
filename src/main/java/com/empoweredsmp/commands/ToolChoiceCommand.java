@@ -15,11 +15,9 @@ import java.util.Map;
 
 /**
  * /toolchoice <tool1> <tool2>
- * Prosperity Level 2 only. Locks in which 2 of the 4 netherite tool types
- * (pickaxe, axe, shovel, hoe) the player may use. One-time choice: once set,
- * it cannot be changed (mirrors the "abilities are permanent" theme used
- * elsewhere in this plugin). Prosperity Level 3 doesn't need this — they can
- * use all 4 automatically.
+ * Prosperity Low Tier only. Locks in which 2 of the 4 netherite tool types
+ * (pickaxe, axe, shovel, hoe) the player may use. One-time choice. Prosperity
+ * High Tier doesn't need this: it can use all 4 automatically.
  */
 public class ToolChoiceCommand implements CommandExecutor {
 
@@ -53,11 +51,11 @@ public class ToolChoiceCommand implements CommandExecutor {
         }
 
         if (!abilities.canChooseProsperityTools(p)) {
-            if (abilities.isProsperityAtLeast(p, 3)) {
-                sender.sendMessage(Component.text("You're Prosperity level 3 — you can already use all "
-                        + "netherite tools, no need to choose.", NamedTextColor.YELLOW));
+            if (abilities.isProsperityAtLeast(p, 2)) {
+                sender.sendMessage(Component.text("You're High Tier, so you can already use all netherite tools.",
+                        NamedTextColor.YELLOW));
             } else {
-                sender.sendMessage(Component.text("You need to be Prosperity level 2 to choose your netherite tools.",
+                sender.sendMessage(Component.text("You need to be Prosperity Low Tier to choose your netherite tools.",
                         NamedTextColor.RED));
             }
             return true;
