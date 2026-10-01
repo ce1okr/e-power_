@@ -1,97 +1,111 @@
 # EmpoweredSMP configuration.
-# Every tunable number from the ability spec lives here so you can adjust
-# balance without recompiling. Comments show which ability/level a value
-# belongs to. Effect ticking runs every `effect-tick-interval-ticks`.
+# Tiers: Level 0 (starting state, kit only) -> Low Tier -> High Tier.
+# Per-tier values use "low" / "high" keys. Every number from the ability
+# spec lives here so you can rebalance without recompiling.
+#
+# If you edit this file, keep config-version as is. When the plugin is updated
+# to a newer config-version it saves your old file as config-old.yml and
+# writes a fresh one.
+config-version: 2
 
 effect-tick-interval-ticks: 20
 
 global-gates:
-  # These are also stored in data/global-state.yml at runtime (source of truth
-  # once the server has run once); this block only seeds first-run defaults.
+  # Seeds first-run defaults only; the live values are stored in global-state.yml.
   nether-unlocked: false
   end-unlocked: false
   villagers-unlocked: false
 
+# "Enemies" for Main Abilities = players who damaged you within memory-seconds
+# and are within radius blocks (same world).
+enemies:
+  memory-seconds: 30
+  radius: 20
+
 caps:
-  golden-apples-normal: 96
-  golden-apples-vitality: 128
-  enchanted-golden-apples-vitality-max: 5
+  golden-apples-normal: 64
+  golden-apples-vitality: 96            # Vitality Low + High
+  enchanted-golden-apples: {low: 2, high: 3}
   xp-bottles-normal: 128
-  xp-bottles-prosperity-stacks: 3        # 3 stacks = 192
+  xp-bottles-prosperity-stacks: 3       # 3 stacks = 192 (Prosperity Low + High)
   totems-normal: 1
-  totems-prosperity-level3: 2
+  totems-prosperity: 2                  # Prosperity Low + High
   cobwebs-normal: 64
-  cobwebs-mobility: 128
+  cobwebs-mobility: 128                 # Mobility Low + High
   wind-charges: 128
   ender-pearls-max: 6
   ender-pearl-cooldown-seconds: 30
 
 enchant-caps:
   protection-normal: 3
-  protection-vitality-level1: 4
-  sharpness-normal: 4
-  sharpness-strength-level2: 5
+  protection-vitality: 4                # Vitality Low + High
+  sharpness-normal: 4                   # also Smite / Bane of Arthropods
+  sharpness-strength: 5                 # Strength High
   power-normal: 4
-  power-ranger-level1: 5
-  strength-effect-normal-max-amplifier: 0    # Strength I only
-  strength-effect-strength-ability-max-amplifier: 1 # Strength II at ability lvl2
-  speed-normal-max-amplifier: 0              # Speed I only
-  speed-mobility-max-amplifier: 1            # Speed II at mobility lvl2
-
-vitality:
-  max-hearts-by-level: {0: 11, 1: 11, 2: 13, 3: 16}   # in hearts (2 HP each)
-  heart-surge:
-    trigger-hearts: 3
-    restore-to-hearts: 16
-    cooldown-seconds: 240
-
-invisibility:
-  full-invis:
-    trigger-hearts: 4
-    cooldown-seconds: 45
-    duration-seconds: 8
-
-defense:
-  knockback-resistance-level1: 0.25
-  resistance-surge:
-    trigger-hearts: 3
-    amplifier: 4        # Resistance V (index 4)
-    duration-seconds: 20
-    cooldown-seconds: 100
+  power-ranger: 5                       # Ranger Low + High
 
 strength:
-  level1-crit-chance: 0.20
-  level2-crit-chance: 0.45
-  strength-surge:
+  hit-multiplier-chance: {low: 0.25, high: 0.50}
+  hit-multiplier: 1.5
+  main:
     trigger-hearts: 4
-    amplifier: 3         # Strength IV (index 3)
-    duration-seconds: 10
-    cooldown-seconds: 80
+    weakness-amplifier: 4               # Weakness V
+    duration-seconds: {low: 15, high: 30}
+    cooldown-seconds: {low: 60, high: 90}
+
+defense:
+  zero-damage-chance: {low: 0.15, high: 0.30}
+  reflect-chance: {low: 0.15, high: 0.30}
+  reflect-multiplier: 2.0
+  main:
+    trigger-hearts: 5
+    weakness-amplifier: 1               # Weakness II
+    slowness-amplifier: 0               # Slowness I
+    duration-seconds: {low: 15, high: 30}
+    cooldown-seconds: {low: 60, high: 90}
 
 mobility:
-  level3-aura:
+  lunge-cooldown-seconds: 15
+  main:
     trigger-hearts: 4
-    radius: 20
-    slowness-amplifier: 4  # Slowness V
-    mining-fatigue-amplifier: 9 # Mining Fatigue X
-    duration-seconds: 20
-    cooldown-seconds: 120
+    slowness-amplifier: 2               # Slowness III
+    mining-fatigue-amplifier: 0         # Mining Fatigue I
+    duration-seconds: {low: 30, high: 45}
+    cooldown-seconds: {low: 120, high: 110}
 
 ranger:
-  level1-damage-bonus: 0.20
-  level2-damage-bonus: 0.40
-  slowness-on-fifth-hit:
-    amplifier: 9   # Slowness X
-    duration-seconds: 15
+  damage-bonus: {low: 0.30, high: 0.60}
+  glowing-arrow-seconds: 30
+  main:
+    hits-required: 3
+    slowness-amplifier: 9               # Slowness X
+    mining-fatigue-amplifier: 2         # Mining Fatigue III
+    duration-seconds: {low: 15, high: 25}
+    cooldown-seconds: {low: 60, high: 70}
+
+vitality:
+  max-hearts: {level0: 11, low: 13, high: 15}
+  main:
+    trigger-hearts: 4
+    regeneration-amplifier: 4           # Regeneration V
+    duration-seconds: {low: 10, high: 20}
+    cooldown-seconds: {low: 60, high: 70}
 
 elemental:
-  level3-glow-radius: 50
+  nether-hearts: {low: 13, high: 16}
 
-potion-effect-duration-multiplier:
-  level1: 1.5
-  level2: 2.0
+invisibility:
+  main:
+    trigger-hearts: 4
+    duration-seconds: {low: 30, high: 60}
+    cooldown-seconds: {low: 90, high: 130}
 
 prosperity:
-  extra-inventory-slots: {1: 9, 2: 18, 3: 27}
-  xp-multiplier: 2.0
-  hero-of-village-discount: {2: 0.55, 3: 1.0}
+  xp-multiplier: {low: 1.5, high: 2.0}
+  potion-multiplier: {low: 1.5, high: 2.0}
+  extra-inventory-slots: {low: 18, high: 27}
+  trade-discount-low: 0.5               # Low Tier: 50% off. High Tier: 1 emerald per trade.
+  curse:
+    cooldown-hours: {low: 5, high: 3}
+    duration-hours: 2
+    hearts: 9
