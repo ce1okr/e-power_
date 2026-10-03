@@ -48,7 +48,7 @@ public class ItemRules {
             for (var entry : meta.getEnchants().entrySet()) {
                 Enchantment ench = entry.getKey();
                 int lvl = entry.getValue();
-                if (isProtectionFamily(ench) && lvl > protectionCap(p)) return false;
+                if (isProtectionFamily(ench) && lvl > protectionCap()) return false;
                 if (isSharpnessFamily(ench) && lvl > sharpnessCap(p)) return false;
                 if (ench.equals(Enchantment.POWER) && lvl > powerCap(p)) return false;
             }
@@ -77,8 +77,9 @@ public class ItemRules {
                 || e.equals(Enchantment.BANE_OF_ARTHROPODS);
     }
 
-    private int protectionCap(Player p) {
-        return abilities.canUseProtection4(p) ? cfg.protectionVitality() : cfg.protectionNormal();
+    /** Protection-family cap is the same for every ability and tier (no Vitality exception). */
+    private int protectionCap() {
+        return cfg.protectionNormal();
     }
 
     private int sharpnessCap(Player p) {
