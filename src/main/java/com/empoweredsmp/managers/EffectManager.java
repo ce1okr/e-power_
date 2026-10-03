@@ -118,11 +118,10 @@ public class EffectManager extends BukkitRunnable {
             p.setSilent(false);
         }
 
-        // ---- Prosperity curse (applies to anyone who has been cursed) ----
+        // ---- Prosperity curse (applies to anyone who has been cursed): Weakness I + Slowness I + 9 hearts ----
         if (cursed) {
             giveCurse(p, PotionEffectType.WEAKNESS, dur);
             giveCurse(p, PotionEffectType.SLOWNESS, dur);
-            giveCurse(p, PotionEffectType.MINING_FATIGUE, dur);
         }
 
         if (ability == null) return;
