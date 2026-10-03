@@ -26,6 +26,8 @@ import com.empoweredsmp.managers.CooldownManager;
 import com.empoweredsmp.managers.EffectManager;
 import com.empoweredsmp.managers.EnemyTracker;
 import com.empoweredsmp.managers.ExtraInventoryManager;
+import com.empoweredsmp.managers.IllegalGearSweeper;
+import com.empoweredsmp.managers.ItemRules;
 import com.empoweredsmp.managers.RecipeRegistrar;
 import com.empoweredsmp.managers.StarterKitManager;
 import com.empoweredsmp.util.Config;
@@ -53,6 +55,7 @@ public class EmpoweredSMP extends JavaPlugin {
     private ExtraInventoryManager extraInventoryManager;
     private EnemyTracker enemyTracker;
     private EffectManager effectManager;
+    private IllegalGearSweeper gearSweeper;
     private Config pConfig;
 
     @Override
@@ -68,6 +71,7 @@ public class EmpoweredSMP extends JavaPlugin {
         extraInventoryManager = new ExtraInventoryManager(dataManager, abilityManager, pConfig);
         enemyTracker = new EnemyTracker(pConfig);
         StarterKitManager starterKitManager = new StarterKitManager();
+        ItemRules itemRules = new ItemRules(abilityManager, pConfig);
 
         // Recipe
         new RecipeRegistrar(this, LEVEL_FRAGMENT_MATERIAL, LEVEL_UPGRADER_MATERIAL).register();
@@ -77,7 +81,7 @@ public class EmpoweredSMP extends JavaPlugin {
         pm.registerEvents(new DeathListener(abilityManager, dataManager, extraInventoryManager,
                 LEVEL_FRAGMENT_MATERIAL), this);
         pm.registerEvents(new FragmentInteractListener(abilityManager, dataManager), this);
-        pm.registerEvents(new EnforcementListener(this, abilityManager, pConfig), this);
+        pm.registerEvents(new EnforcementListener(this, abilityManager, pConfig, itemRules), this);
         pm.registerEvents(new MainAbilityListener(this, abilityManager, cooldownManager, enemyTracker, pConfig), this);
         pm.registerEvents(new CombatListener(this, abilityManager, cooldownManager, enemyTracker, pConfig), this);
         pm.registerEvents(new VillagerListener(abilityManager, globalState), this);
@@ -103,6 +107,10 @@ public class EmpoweredSMP extends JavaPlugin {
         // Passive effect ticking
         effectManager = new EffectManager(this, abilityManager, pConfig);
         effectManager.start();
+
+        // Takes off armor a player isn't allowed to wear (safety net)
+        gearSweeper = new IllegalGearSweeper(this, itemRules);
+        gearSweeper.start();
 
         getLogger().info("EmpoweredSMP enabled.");
     }
@@ -131,6 +139,9 @@ public class EmpoweredSMP extends JavaPlugin {
     public void onDisable() {
         if (effectManager != null) {
             effectManager.cancel();
+        }
+        if (gearSweeper != null) {
+            gearSweeper.cancel();
         }
         if (dataManager != null) {
             dataManager.saveAll();
