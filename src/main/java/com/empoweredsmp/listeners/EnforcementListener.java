@@ -1,74 +1,165 @@
 package com.empoweredsmp.listeners;
 
 import com.empoweredsmp.managers.AbilityManager;
+import com.empoweredsmp.managers.ItemRules;
 import com.empoweredsmp.util.Config;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
-import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
+import org.bukkit.event.Event;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockDispenseArmorEvent;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityPickupItemEvent;
 import org.bukkit.event.entity.EntityPotionEffectEvent;
 import org.bukkit.event.entity.EntityPotionEffectEvent.Cause;
 import org.bukkit.event.entity.EntityShootBowEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerItemConsumeEvent;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.meta.FireworkMeta;
-import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.PotionMeta;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.potion.PotionType;
 
-import java.util.Set;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 
 /**
  * Enforces "only this ability can use X" rules, enchant caps and item caps.
- * Disallowed items/effects are blocked when used, equipped or picked up.
+ *
+ * An illegal item (netherite gear or enchant levels you aren't allowed) can still be
+ * held, moved around, stored and dropped. What's blocked is USING it: wearing illegal
+ * armor, attacking / breaking blocks / shooting / right-click-using with it. Which items
+ * count as illegal is decided by ItemRules.
  */
 public class EnforcementListener implements Listener {
-
-    private static final Set<Material> NETHERITE_ARMOR = Set.of(
-            Material.NETHERITE_HELMET, Material.NETHERITE_CHESTPLATE,
-            Material.NETHERITE_LEGGINGS, Material.NETHERITE_BOOTS);
-    private static final Set<Material> NETHERITE_TOOLS = Set.of(
-            Material.NETHERITE_PICKAXE, Material.NETHERITE_AXE,
-            Material.NETHERITE_SHOVEL, Material.NETHERITE_HOE);
 
     private final Plugin plugin;
     private final AbilityManager abilities;
     private final Config cfg;
+    private final ItemRules rules;
 
-    public EnforcementListener(Plugin plugin, AbilityManager abilities, Config cfg) {
+    /** Throttle for the "can't use that item" action-bar message. */
+    private final Map<UUID, Long> lastItemWarning = new HashMap<>();
+
+    public EnforcementListener(Plugin plugin, AbilityManager abilities, Config cfg, ItemRules rules) {
         this.plugin = plugin;
         this.abilities = abilities;
         this.cfg = cfg;
+        this.rules = rules;
     }
 
     private void deny(Player p, String reason) {
         p.sendMessage(Component.text(reason, NamedTextColor.RED));
     }
 
-    // ---- Equipping / using gear ----
+    private void denyItem(Player p) {
+        long now = System.currentTimeMillis();
+        Long last = lastItemWarning.get(p.getUniqueId());
+        if (last != null && now - last < 1500) return;
+        lastItemWarning.put(p.getUniqueId(), now);
+        p.sendActionBar(Component.text("You can't use that item. It's illegal for your ability.", NamedTextColor.RED));
+    }
 
+    // ---- Wearing illegal armor (everything else about the item stays allowed) ----
+
+    private boolean isSlotEmpty(Player p, EquipmentSlot slot) {
+        PlayerInventory inv = p.getInventory();
+        ItemStack current = switch (slot) {
+            case HEAD -> inv.getHelmet();
+            case CHEST -> inv.getChestplate();
+            case LEGS -> inv.getLeggings();
+            case FEET -> inv.getBoots();
+            default -> null;
+        };
+        return current == null || current.getType() == Material.AIR;
+    }
+
+    /** Only blocks a click when it would put illegal armor into an armor slot. Moving/dropping is untouched. */
     @EventHandler(priority = EventPriority.HIGH)
     public void onClick(InventoryClickEvent event) {
         if (!(event.getWhoClicked() instanceof Player p)) return;
-        ItemStack item = event.getCurrentItem();
-        if (item == null) return;
-        if (!isAllowedItem(p, item)) {
+
+        boolean armorSlotClicked = event.getSlotType() == InventoryType.SlotType.ARMOR;
+        ItemStack incoming = null; // the item this click would put into an armor slot
+
+        switch (event.getClick()) {
+            case NUMBER_KEY -> {
+                // Hotbar-key swap onto an armor slot.
+                if (armorSlotClicked && event.getHotbarButton() >= 0) {
+                    incoming = p.getInventory().getItem(event.getHotbarButton());
+                }
+            }
+            case SHIFT_LEFT, SHIFT_RIGHT -> {
+                // Shift-click in your own inventory auto-equips armor if that slot is empty.
+                if (!armorSlotClicked && event.getClickedInventory() instanceof PlayerInventory) {
+                    ItemStack clicked = event.getCurrentItem();
+                    EquipmentSlot slot = ItemRules.armorSlotOf(clicked);
+                    if (slot != null && isSlotEmpty(p, slot)) {
+                        incoming = clicked;
+                    }
+                }
+            }
+            default -> {
+                // Normal click: whatever is on the cursor goes into the armor slot.
+                if (armorSlotClicked) {
+                    incoming = event.getCursor();
+                }
+            }
+        }
+
+        if (incoming == null || incoming.getType() == Material.AIR) return;
+        if (ItemRules.armorSlotOf(incoming) == null) return; // only armor pieces can be worn
+        if (!rules.isAllowed(p, incoming)) {
             event.setCancelled(true);
-            deny(p, "Your ability does not allow you to use that item.");
+            denyItem(p);
         }
     }
 
+    /** Dragging illegal armor across an armor slot. */
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onDrag(InventoryDragEvent event) {
+        if (!(event.getWhoClicked() instanceof Player p)) return;
+        ItemStack dragged = event.getOldCursor();
+        if (ItemRules.armorSlotOf(dragged) == null || rules.isAllowed(p, dragged)) return;
+        for (int rawSlot : event.getRawSlots()) {
+            if (event.getView().getSlotType(rawSlot) == InventoryType.SlotType.ARMOR) {
+                event.setCancelled(true);
+                denyItem(p);
+                return;
+            }
+        }
+    }
+
+    /** Dispensers equipping armor onto a player. */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onDispenseArmor(BlockDispenseArmorEvent event) {
+        if (!(event.getTargetEntity() instanceof Player p)) return;
+        if (!rules.isAllowed(p, event.getItem())) {
+            event.setCancelled(true);
+        }
+    }
+
+    // ---- Using illegal items ----
+
+    /**
+     * Right-click / use. Only the item's own use is denied (this also stops right-click
+     * equipping armor and drawing a bow); opening chests, doors etc. still works.
+     */
     @EventHandler(priority = EventPriority.HIGH)
     public void onInteract(PlayerInteractEvent event) {
         Player p = event.getPlayer();
@@ -76,60 +167,41 @@ public class EnforcementListener implements Listener {
         if (item == null) return;
 
         if (isPvpFirework(item) && !abilities.canUseRangerGear(p)) {
-            event.setCancelled(true);
+            event.setUseItemInHand(Event.Result.DENY);
             deny(p, "Only Rangers can use PvP firework rockets.");
             return;
         }
-        if (!isAllowedItem(p, item)) {
+        if (!rules.isAllowed(p, item)) {
+            event.setUseItemInHand(Event.Result.DENY);
+            denyItem(p);
+        }
+    }
+
+    /** Attacking with an illegal item in hand. Runs first so other listeners skip the cancelled hit. */
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onAttack(EntityDamageByEntityEvent event) {
+        if (!(event.getDamager() instanceof Player p)) return;
+        ItemStack held = p.getInventory().getItemInMainHand();
+        if (held.getType() == Material.AIR) return;
+        if (!rules.isAllowed(p, held)) {
             event.setCancelled(true);
-            deny(p, "Your ability does not allow you to use that item.");
+            denyItem(p);
         }
     }
 
-    private boolean isAllowedItem(Player p, ItemStack item) {
-        Material type = item.getType();
-
-        if (NETHERITE_ARMOR.contains(type) && !abilities.canUseNetheriteArmor(p)) return false;
-        if (type == Material.NETHERITE_SWORD && !abilities.canUseNetheriteSword(p)) return false;
-        if (type == Material.NETHERITE_SPEAR && !abilities.canUseNetheriteSpear(p)) return false;
-        if (NETHERITE_TOOLS.contains(type) && !abilities.canUseNetheriteTool(p, type)) return false;
-
-        if (item.hasItemMeta()) {
-            ItemMeta meta = item.getItemMeta();
-            for (var entry : meta.getEnchants().entrySet()) {
-                Enchantment ench = entry.getKey();
-                int lvl = entry.getValue();
-                if (isProtectionFamily(ench) && lvl > effectiveProtectionCap(p)) return false;
-                if (isSharpnessFamily(ench) && lvl > effectiveSharpnessCap(p)) return false;
-                if (ench.equals(Enchantment.POWER) && lvl > effectivePowerCap(p)) return false;
-            }
+    /** Breaking blocks with an illegal tool in hand. */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onBreak(BlockBreakEvent event) {
+        Player p = event.getPlayer();
+        ItemStack held = p.getInventory().getItemInMainHand();
+        if (held.getType() == Material.AIR) return;
+        if (!rules.isAllowed(p, held)) {
+            event.setCancelled(true);
+            denyItem(p);
         }
-        return true;
     }
 
-    private boolean isProtectionFamily(Enchantment e) {
-        return e.equals(Enchantment.PROTECTION) || e.equals(Enchantment.BLAST_PROTECTION)
-                || e.equals(Enchantment.PROJECTILE_PROTECTION) || e.equals(Enchantment.FIRE_PROTECTION);
-    }
-
-    private boolean isSharpnessFamily(Enchantment e) {
-        return e.equals(Enchantment.SHARPNESS) || e.equals(Enchantment.SMITE)
-                || e.equals(Enchantment.BANE_OF_ARTHROPODS);
-    }
-
-    private int effectiveProtectionCap(Player p) {
-        return abilities.canUseProtection4(p) ? cfg.protectionVitality() : cfg.protectionNormal();
-    }
-
-    private int effectiveSharpnessCap(Player p) {
-        return abilities.canUseSharpness5(p) ? cfg.sharpnessStrength() : cfg.sharpnessNormal();
-    }
-
-    private int effectivePowerCap(Player p) {
-        return abilities.canUsePower5(p) ? cfg.powerRanger() : cfg.powerNormal();
-    }
-
-    // ---- Ranger-only ammo: tipped arrows and PvP (explosive) firework rockets ----
+    // ---- Shooting: illegal bows, and Ranger-only ammo (tipped arrows, PvP firework rockets) ----
 
     /** A firework rocket with explosion stars (the kind used for crossbow PvP), not a plain flight rocket. */
     private boolean isPvpFirework(ItemStack item) {
@@ -140,6 +212,14 @@ public class EnforcementListener implements Listener {
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onShoot(EntityShootBowEvent event) {
         if (!(event.getEntity() instanceof Player p)) return;
+
+        ItemStack bow = event.getBow();
+        if (bow != null && !rules.isAllowed(p, bow)) {
+            event.setCancelled(true);
+            denyItem(p);
+            return;
+        }
+
         if (abilities.canUseRangerGear(p)) return;
         ItemStack ammo = event.getConsumable();
         if (ammo == null) return;
