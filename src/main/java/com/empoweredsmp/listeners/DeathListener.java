@@ -33,11 +33,19 @@ public class DeathListener implements Listener {
     public void onDeath(PlayerDeathEvent event) {
         Player victim = event.getEntity();
         PlayerData victimData = abilities.get(victim);
+        int tierBefore = victimData.getLevel();
 
         // Death counter: 1/4 per death; at 4/4 you drop one tier (never below Level 0).
-        boolean lostTier = victimData.addDeathQuarter();
+        boolean rolledOver = victimData.addDeathQuarter();
         data.save(victim.getUniqueId());
-        if (lostTier) {
+
+        // A Level 0 player's 4/4 death has no tier to take, so it doesn't drop a fragment.
+        boolean noTierToLose = rolledOver && tierBefore == 0;
+
+        if (noTierToLose) {
+            victim.sendMessage(Component.text("4/4 deaths. You're already at Level 0, so there's no tier to lose. "
+                    + "Death counter reset.", NamedTextColor.GRAY));
+        } else if (rolledOver) {
             victim.sendMessage(Component.text("Too many deaths! You are now " + Tiers.name(victimData.getLevel()) + ".",
                     NamedTextColor.RED));
         } else {
@@ -45,11 +53,10 @@ public class DeathListener implements Listener {
                     NamedTextColor.GRAY));
         }
 
-        // PvP kill: the killer always gets a Level Fragment, whatever the victim's tier.
-        Player killer = victim.getKiller();
-        if (killer != null) {
-            killer.getInventory().addItem(ItemUtil.buildLevelFragment(fragmentMaterial));
-            killer.sendMessage(Component.text("You received a Level Fragment.", NamedTextColor.AQUA));
+        // Every death drops one Level Fragment where the player died (PvP or not),
+        // except the Level 0 4/4 death above.
+        if (!noTierToLose) {
+            event.getDrops().add(ItemUtil.buildLevelFragment(fragmentMaterial));
         }
 
         // Prosperity: extra inventory contents drop on death.
