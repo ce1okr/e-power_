@@ -359,8 +359,6 @@ public class EnforcementListener implements Listener {
         return switch (type) {
             case GOLDEN_APPLE -> abilities.isVitalityAtLeast(p, 1)
                     ? cfg.capGoldenApplesVitality() : cfg.capGoldenApplesNormal();
-            case ENCHANTED_GOLDEN_APPLE -> abilities.isVitalityAtLeast(p, 1)
-                    ? cfg.capEnchantedGoldenApples(abilities.levelOf(p)) : 0;
             case EXPERIENCE_BOTTLE -> abilities.isProsperityAtLeast(p, 1)
                     ? cfg.capXpBottlesProsperityStacks() * 64 : cfg.capXpBottlesNormal();
             case TOTEM_OF_UNDYING -> abilities.isProsperityAtLeast(p, 1)
